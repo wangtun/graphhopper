@@ -29,10 +29,10 @@ import java.util.Arrays;
  * i.e. its a Dijkstra search that allows re-using the shortest path tree for different searches with the same origin
  * node and uses large int/double arrays instead of hash maps to store the shortest path tree (higher memory consumption,
  * but faster query times -> better for CH preparation). Main reason we use this instead of {@link DijkstraOneToMany}
- * is that we can use this implementation with a {@link PrepareCHGraph}.
+ * is that we can use this implementation with a {@link PrepareCHGraph} and we are only interested in checking for
+ * witness paths (e.g. we do not need to find the actual path).
  */
 public class NodeBasedWitnessPathSearcher {
-    private static final int EMPTY_PARENT = -1;
     private static final int NOT_FOUND = -1;
     private final PrepareCHGraph graph;
     private final PrepareCHEdgeExplorer outEdgeExplorer;
@@ -40,7 +40,6 @@ public class NodeBasedWitnessPathSearcher {
     private final int maxLevel;
     private int maxVisitedNodes = Integer.MAX_VALUE;
     protected double[] weights;
-    private int[] parents;
     private IntDoubleBinaryHeap heap;
     private int ignoreNode = -1;
     private int visitedNodes;
@@ -56,9 +55,6 @@ public class NodeBasedWitnessPathSearcher {
         this.graph = graph;
         this.maxLevel = maxLevel;
         outEdgeExplorer = graph.createOutEdgeExplorer();
-
-        parents = new int[graph.getNodes()];
-        Arrays.fill(parents, EMPTY_PARENT);
 
         weights = new double[graph.getNodes()];
         Arrays.fill(weights, Double.MAX_VALUE);
@@ -90,7 +86,6 @@ public class NodeBasedWitnessPathSearcher {
             for (int i = 0; i < vn; i++) {
                 int n = changedNodes.get(i);
                 weights[n] = Double.MAX_VALUE;
-                parents[n] = EMPTY_PARENT;
             }
 
             heap.clear();
@@ -103,8 +98,7 @@ public class NodeBasedWitnessPathSearcher {
             changedNodes.add(currNode);
         } else {
             // Cached! Re-use existing data structures
-            int parentNode = parents[to];
-            if (parentNode != EMPTY_PARENT && weights[to] <= weights[currNode])
+            if (weights[to] != Double.MAX_VALUE && weights[to] <= weights[currNode])
                 return to;
 
             if (heap.isEmpty() || isMaxVisitedNodesExceeded())
@@ -137,12 +131,10 @@ public class NodeBasedWitnessPathSearcher {
 
                 double w = weights[adjNode];
                 if (w == Double.MAX_VALUE) {
-                    parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
                     heap.insert_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
                 } else if (w > tmpWeight) {
-                    parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
                     heap.update_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
@@ -175,7 +167,6 @@ public class NodeBasedWitnessPathSearcher {
 
     public void close() {
         weights = null;
-        parents = null;
         heap = null;
     }
 
