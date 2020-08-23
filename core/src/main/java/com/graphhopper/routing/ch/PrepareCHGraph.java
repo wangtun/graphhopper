@@ -19,10 +19,14 @@
 package com.graphhopper.routing.ch;
 
 import com.graphhopper.routing.util.AllCHEdgesIterator;
+import com.graphhopper.routing.util.AllEdgesIterator;
+import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.CHGraph;
+import com.graphhopper.storage.Graph;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.util.EdgeIterator;
+import com.graphhopper.util.EdgeIteratorState;
 
 /**
  * Helper adapter api over {@link CHGraph} used for CH preparation.
@@ -47,7 +51,7 @@ public class PrepareCHGraph {
 
     private PrepareCHGraph(CHGraph chGraph, Weighting weighting) {
         this.chGraph = chGraph;
-        this.weighting = weighting;
+        this.weighting = new CachingWeighting(weighting, chGraph.getBaseGraph());
     }
 
     public PrepareCHEdgeExplorer createInEdgeExplorer() {
@@ -139,6 +143,66 @@ public class PrepareCHGraph {
             }
 
             prevEdge = tmpIter.getEdge();
+        }
+    }
+
+    private static class CachingWeighting implements Weighting {
+        private final Weighting weighting;
+        private final double[] fwdWeights;
+        private final double[] bwdWeights;
+
+        public CachingWeighting(Weighting weighting, Graph graph) {
+            this.weighting = weighting;
+            fwdWeights = new double[graph.getEdges()];
+            bwdWeights = new double[graph.getEdges()];
+            AllEdgesIterator iter = graph.getAllEdges();
+            while (iter.next()) {
+                fwdWeights[iter.getEdge()] = weighting.calcEdgeWeight(iter, false);
+                bwdWeights[iter.getEdge()] = weighting.calcEdgeWeight(iter, true);
+            }
+        }
+
+        @Override
+        public double getMinWeight(double distance) {
+            return weighting.getMinWeight(distance);
+        }
+
+        @Override
+        public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
+            boolean fwd = !edgeState.get(EdgeIteratorState.REVERSE_STATE) && !reverse;
+            double weight = fwd ? fwdWeights[edgeState.getEdge()] : bwdWeights[edgeState.getEdge()];
+//            assert weight == weighting.calcEdgeWeight(edgeState, reverse);
+            return weight;
+        }
+
+        @Override
+        public long calcEdgeMillis(EdgeIteratorState edgeState, boolean reverse) {
+            return weighting.calcEdgeMillis(edgeState, reverse);
+        }
+
+        @Override
+        public double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
+            return weighting.calcTurnWeight(inEdge, viaNode, outEdge);
+        }
+
+        @Override
+        public long calcTurnMillis(int inEdge, int viaNode, int outEdge) {
+            return weighting.calcTurnMillis(inEdge, viaNode, outEdge);
+        }
+
+        @Override
+        public boolean hasTurnCosts() {
+            return weighting.hasTurnCosts();
+        }
+
+        @Override
+        public FlagEncoder getFlagEncoder() {
+            return weighting.getFlagEncoder();
+        }
+
+        @Override
+        public String getName() {
+            return weighting.getName();
         }
     }
 }
