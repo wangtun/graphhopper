@@ -20,7 +20,6 @@ package com.graphhopper.routing.ch;
 import com.carrotsearch.hppc.IntArrayList;
 import com.graphhopper.apache.commons.collections.IntDoubleBinaryHeap;
 import com.graphhopper.routing.DijkstraOneToMany;
-import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.Helper;
 
 import java.util.Arrays;
@@ -42,7 +41,6 @@ public class NodeBasedWitnessPathSearcher {
     private int maxVisitedNodes = Integer.MAX_VALUE;
     protected double[] weights;
     private int[] parents;
-    private int[] edgeIds;
     private IntDoubleBinaryHeap heap;
     private int ignoreNode = -1;
     private int visitedNodes;
@@ -61,9 +59,6 @@ public class NodeBasedWitnessPathSearcher {
 
         parents = new int[graph.getNodes()];
         Arrays.fill(parents, EMPTY_PARENT);
-
-        edgeIds = new int[graph.getNodes()];
-        Arrays.fill(edgeIds, EdgeIterator.NO_EDGE);
 
         weights = new double[graph.getNodes()];
         Arrays.fill(weights, Double.MAX_VALUE);
@@ -96,7 +91,6 @@ public class NodeBasedWitnessPathSearcher {
                 int n = changedNodes.get(i);
                 weights[n] = Double.MAX_VALUE;
                 parents[n] = EMPTY_PARENT;
-                edgeIds[n] = EdgeIterator.NO_EDGE;
             }
 
             heap.clear();
@@ -134,8 +128,7 @@ public class NodeBasedWitnessPathSearcher {
             PrepareCHEdgeIterator iter = outEdgeExplorer.setBaseNode(currNode);
             while (iter.next()) {
                 int adjNode = iter.getAdjNode();
-                int prevEdgeId = edgeIds[adjNode];
-                if (!accept(iter, prevEdgeId))
+                if (!accept(iter))
                     continue;
 
                 double tmpWeight = iter.getWeight(false) + weights[currNode];
@@ -148,13 +141,11 @@ public class NodeBasedWitnessPathSearcher {
                     weights[adjNode] = tmpWeight;
                     heap.insert_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
-                    edgeIds[adjNode] = iter.getEdge();
                 } else if (w > tmpWeight) {
                     parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
                     heap.update_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
-                    edgeIds[adjNode] = iter.getEdge();
                 }
             }
 
@@ -185,7 +176,6 @@ public class NodeBasedWitnessPathSearcher {
     public void close() {
         weights = null;
         parents = null;
-        edgeIds = null;
         heap = null;
     }
 
@@ -212,10 +202,7 @@ public class NodeBasedWitnessPathSearcher {
         ignoreNode = node;
     }
 
-    private boolean accept(PrepareCHEdgeIterator iter, int prevOrNextEdgeId) {
-        if (iter.getEdge() == prevOrNextEdgeId)
-            return false;
-
+    private boolean accept(PrepareCHEdgeIterator iter) {
         if (graph.getLevel(iter.getAdjNode()) != maxLevel) {
             return false;
         }
