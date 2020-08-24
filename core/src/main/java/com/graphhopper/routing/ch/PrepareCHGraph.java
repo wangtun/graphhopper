@@ -51,7 +51,7 @@ public class PrepareCHGraph {
 
     private PrepareCHGraph(CHGraph chGraph, Weighting weighting) {
         this.chGraph = chGraph;
-        this.weighting = new CachingWeighting(weighting, chGraph.getBaseGraph());
+        this.weighting = new PrecalculatedWeighting(weighting, chGraph.getBaseGraph());
     }
 
     public PrepareCHEdgeExplorer createInEdgeExplorer() {
@@ -146,12 +146,12 @@ public class PrepareCHGraph {
         }
     }
 
-    private static class CachingWeighting implements Weighting {
+    private static class PrecalculatedWeighting implements Weighting {
         private final Weighting weighting;
         private final double[] fwdWeights;
         private final double[] bwdWeights;
 
-        public CachingWeighting(Weighting weighting, Graph graph) {
+        public PrecalculatedWeighting(Weighting weighting, Graph graph) {
             this.weighting = weighting;
             fwdWeights = new double[graph.getEdges()];
             bwdWeights = new double[graph.getEdges()];
