@@ -157,8 +157,9 @@ public class PrepareCHGraph {
             bwdWeights = new double[graph.getEdges()];
             AllEdgesIterator iter = graph.getAllEdges();
             while (iter.next()) {
-                fwdWeights[iter.getEdge()] = weighting.calcEdgeWeight(iter, false);
-                bwdWeights[iter.getEdge()] = weighting.calcEdgeWeight(iter, true);
+                // todo: for #1835 move the access check into the weighting
+                fwdWeights[iter.getEdge()] = iter.get(weighting.getFlagEncoder().getAccessEnc()) ? weighting.calcEdgeWeight(iter, false) : Double.POSITIVE_INFINITY;
+                bwdWeights[iter.getEdge()] = iter.getReverse(weighting.getFlagEncoder().getAccessEnc()) ? weighting.calcEdgeWeight(iter, true) : Double.POSITIVE_INFINITY;
             }
         }
 
@@ -169,10 +170,8 @@ public class PrepareCHGraph {
 
         @Override
         public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
-            boolean fwd = !edgeState.get(EdgeIteratorState.REVERSE_STATE) && !reverse;
-            double weight = fwd ? fwdWeights[edgeState.getEdge()] : bwdWeights[edgeState.getEdge()];
-//            assert weight == weighting.calcEdgeWeight(edgeState, reverse);
-            return weight;
+            boolean fwd = edgeState.get(EdgeIteratorState.REVERSE_STATE) == reverse;
+            return fwd ? fwdWeights[edgeState.getEdge()] : bwdWeights[edgeState.getEdge()];
         }
 
         @Override

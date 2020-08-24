@@ -735,6 +735,9 @@ public class CHGraphImpl implements CHGraph, Storable<CHGraph> {
             if (isShortcut())
                 return getFwdAccess();
 
+            // todonow: this is a bit of a hack but prevents the getFlags() call here
+            if (property == EdgeIteratorState.REVERSE_STATE)
+                return edgeIterable.reverse;
             return property.getBool(edgeIterable.reverse, getFlags());
         }
 

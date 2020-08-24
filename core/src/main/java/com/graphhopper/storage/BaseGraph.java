@@ -1241,6 +1241,9 @@ class BaseGraph implements Graph {
 
         @Override
         public boolean get(BooleanEncodedValue property) {
+            // todonow: this is a bit of a hack but prevents the getFlags() call here
+            if (property == EdgeIteratorState.REVERSE_STATE)
+                return reverse;
             return property.getBool(reverse, getFlags());
         }
 
