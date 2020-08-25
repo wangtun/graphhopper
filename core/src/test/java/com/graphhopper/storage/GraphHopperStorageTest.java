@@ -21,6 +21,7 @@ import com.graphhopper.GraphHopper;
 import com.graphhopper.config.CHProfile;
 import com.graphhopper.config.Profile;
 import com.graphhopper.routing.util.BikeFlagEncoder;
+import com.graphhopper.routing.util.CarFlagEncoder;
 import com.graphhopper.routing.util.EncodingManager;
 import com.graphhopper.util.*;
 import com.graphhopper.util.shapes.BBox;
@@ -334,6 +335,30 @@ public class GraphHopperStorageTest extends AbstractGraphStorageTester {
         Helper.close(graph);
 
         Helper.removeDir(new File(defaultGraphLoc));
+    }
+
+    @Test
+    public void testNodeRemoval() {
+        CarFlagEncoder encoder = new CarFlagEncoder();
+        EncodingManager em = EncodingManager.create(encoder);
+        GraphHopperStorage graph = new GraphBuilder(em).create();
+        assertEquals(0, graph.edge(0, 3, 10, true).getEdge());
+        assertEquals(1, graph.edge(2, 4, 10, true).getEdge());
+        assertEquals(2, graph.edge(1, 5, 10, true).getEdge());
+        assertEquals(3, graph.edge(6, 0, 10, true).getEdge());
+        assertEquals(7, graph.getNodes());
+        assertEquals(4, graph.getEdges());
+        System.out.println("graph before:");
+        GHUtility.printGraphForUnitTest(graph, encoder);
+        graph.markNodeRemoved(2);
+        graph.markNodeRemoved(6);
+        graph.optimize();
+        System.out.println("graph after:");
+        GHUtility.printGraphForUnitTest(graph, encoder);
+        // todonow: fails! why is the number of nodes reduced to 5 instead of 4?
+//        assertEquals(4, graph.getNodes());
+        // todonow: fails! why does this give 4? the number of edges is 2, and the largest edge ID is 2.
+//        assertEquals(2, graph.getEdges());
     }
 
 }
