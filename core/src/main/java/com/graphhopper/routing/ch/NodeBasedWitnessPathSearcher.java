@@ -30,15 +30,13 @@ import java.util.Arrays;
  * i.e. its a Dijkstra search that allows re-using the shortest path tree for different searches with the same origin
  * node and uses large int/double arrays instead of hash maps to store the shortest path tree (higher memory consumption,
  * but faster query times -> better for CH preparation). Main reason we use this instead of {@link DijkstraOneToMany}
- * is that we can use this implementation with a {@link PrepareCHGraph}.
+ * is that we can use this implementation with a {@link PrepareGraph}.
  */
 public class NodeBasedWitnessPathSearcher {
     private static final int EMPTY_PARENT = -1;
     private static final int NOT_FOUND = -1;
-    private final PrepareCHGraph graph;
-    private final PrepareCHEdgeExplorer outEdgeExplorer;
+    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final IntArrayList changedNodes;
-    private final int maxLevel;
     private int maxVisitedNodes = Integer.MAX_VALUE;
     protected double[] weights;
     private int[] parents;
@@ -50,13 +48,7 @@ public class NodeBasedWitnessPathSearcher {
     private int currNode, to;
     private double weightLimit = Double.MAX_VALUE;
 
-    public NodeBasedWitnessPathSearcher(PrepareCHGraph graph) {
-        this(graph, graph.getNodes());
-    }
-
-    public NodeBasedWitnessPathSearcher(PrepareCHGraph graph, int maxLevel) {
-        this.graph = graph;
-        this.maxLevel = maxLevel;
+    public NodeBasedWitnessPathSearcher(PrepareGraph graph) {
         outEdgeExplorer = graph.createOutEdgeExplorer();
 
         parents = new int[graph.getNodes()];
@@ -131,14 +123,14 @@ public class NodeBasedWitnessPathSearcher {
 
         while (true) {
             visitedNodes++;
-            PrepareCHEdgeIterator iter = outEdgeExplorer.setBaseNode(currNode);
+            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(currNode);
             while (iter.next()) {
                 int adjNode = iter.getAdjNode();
                 int prevEdgeId = edgeIds[adjNode];
                 if (!accept(iter, prevEdgeId))
                     continue;
 
-                double tmpWeight = iter.getWeight(false) + weights[currNode];
+                double tmpWeight = iter.getWeight() + weights[currNode];
                 if (Double.isInfinite(tmpWeight))
                     continue;
 
@@ -148,13 +140,11 @@ public class NodeBasedWitnessPathSearcher {
                     weights[adjNode] = tmpWeight;
                     heap.insert_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
-                    edgeIds[adjNode] = iter.getEdge();
                 } else if (w > tmpWeight) {
                     parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
                     heap.update_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
-                    edgeIds[adjNode] = iter.getEdge();
                 }
             }
 
@@ -212,14 +202,7 @@ public class NodeBasedWitnessPathSearcher {
         ignoreNode = node;
     }
 
-    private boolean accept(PrepareCHEdgeIterator iter, int prevOrNextEdgeId) {
-        if (iter.getEdge() == prevOrNextEdgeId)
-            return false;
-
-        if (graph.getLevel(iter.getAdjNode()) != maxLevel) {
-            return false;
-        }
-
+    private boolean accept(PrepareGraph.PrepareGraphIterator iter, int prevOrNextEdgeId) {
         return ignoreNode < 0 || iter.getAdjNode() != ignoreNode;
     }
 

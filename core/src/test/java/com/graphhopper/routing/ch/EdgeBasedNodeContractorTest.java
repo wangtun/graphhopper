@@ -31,7 +31,6 @@ import com.graphhopper.storage.GraphBuilder;
 import com.graphhopper.storage.GraphHopperStorage;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.GHUtility;
-import com.graphhopper.util.PMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1380,9 +1379,7 @@ public class EdgeBasedNodeContractorTest {
     }
 
     private EdgeBasedNodeContractor createNodeContractor() {
-        EdgeBasedNodeContractor nodeContractor = new EdgeBasedNodeContractor(chGraph, new PMap());
-        nodeContractor.initFromGraph();
-        return nodeContractor;
+        return null;
     }
 
     private void setRestriction(EdgeIteratorState inEdge, EdgeIteratorState outEdge, int viaNode) {

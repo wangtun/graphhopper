@@ -90,10 +90,12 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
                 throw new IllegalArgumentException("For edge-based CH you need a turn cost storage");
             }
             prepareGraph = PrepareCHGraph.edgeBased(chGraph, chConfig.getWeighting());
-            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, pMap);
+            PrepareGraph pg = PrepareGraph.edgeBased(ghStorage, chConfig.getWeighting());
+            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, pg, pMap);
         } else {
             prepareGraph = PrepareCHGraph.nodeBased(chGraph, chConfig.getWeighting());
-            nodeContractor = new NodeBasedNodeContractor(prepareGraph, pMap);
+            PrepareGraph pg = PrepareGraph.nodeBased(ghStorage, chConfig.getWeighting());
+            nodeContractor = new NodeBasedNodeContractor(prepareGraph, pg, pMap);
         }
     }
 
@@ -287,6 +289,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             }
         }
 
+        nodeContractor.remapSkipEdges();
+
         logHeuristicStats(updateCounter);
 
         logger.info(
@@ -329,6 +333,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
                 stopWatch.start();
             }
         }
+        nodeContractor.remapSkipEdges();
     }
 
     private void stopIfInterrupted() {

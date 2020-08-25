@@ -65,8 +65,9 @@ public class EdgeBasedWitnessPathSearcher {
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
     // graph variables
-    private final PrepareCHGraph chGraph;
-    private final PrepareCHEdgeExplorer outEdgeExplorer;
+    private final PrepareGraph chGraph;
+    private final PrepareCHGraph pch;
+    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final PrepareCHEdgeExplorer origInEdgeExplorer;
     private final int maxLevel;
 
@@ -105,16 +106,17 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareCHGraph chGraph, PMap pMap) {
+    public EdgeBasedWitnessPathSearcher(PrepareGraph chGraph, PrepareCHGraph pch, PMap pMap) {
         this.chGraph = chGraph;
+        this.pch = pch;
         extractParams(pMap);
 
         outEdgeExplorer = chGraph.createOutEdgeExplorer();
-        origInEdgeExplorer = chGraph.createOriginalInEdgeExplorer();
+        origInEdgeExplorer = pch.createOriginalInEdgeExplorer();
         maxLevel = chGraph.getNodes();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
-        int numOriginalEdges = chGraph.getOriginalEdges();
+        int numOriginalEdges = pch.getOriginalEdges();
         initStorage(2 * numOriginalEdges);
         initCollections();
     }
@@ -219,12 +221,12 @@ public class EdgeBasedWitnessPathSearcher {
             }
 
             final int fromNode = adjNodes[currKey];
-            PrepareCHEdgeIterator iter = outEdgeExplorer.setBaseNode(fromNode);
+            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(fromNode);
             while (iter.next()) {
                 if (isContracted(iter.getAdjNode())) {
                     continue;
                 }
-                double edgeWeight = iter.getWeight(false) + calcTurnWeight(incEdges[currKey], iter.getBaseNode(), iter.getOrigEdgeFirst());
+                double edgeWeight = iter.getWeight() + calcTurnWeight(incEdges[currKey], iter.getBaseNode(), iter.getOrigEdgeFirst());
                 double weight = edgeWeight + weights[currKey];
                 if (isInfinite(weight)) {
                     continue;
@@ -321,7 +323,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private void setInitialEntries(int sourceNode, int sourceEdge, int centerNode) {
-        PrepareCHEdgeIterator outIter = outEdgeExplorer.setBaseNode(sourceNode);
+        PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(sourceNode);
         while (outIter.next()) {
             if (isContracted(outIter.getAdjNode())) {
                 continue;
@@ -330,7 +332,7 @@ public class EdgeBasedWitnessPathSearcher {
             if (isInfinite(turnWeight)) {
                 continue;
             }
-            double edgeWeight = outIter.getWeight(false);
+            double edgeWeight = outIter.getWeight();
             double weight = turnWeight + edgeWeight;
             boolean isPathToCenter = outIter.getAdjNode() == centerNode;
             int incEdge = outIter.getOrigEdgeLast();
@@ -345,7 +347,7 @@ public class EdgeBasedWitnessPathSearcher {
                     sourceNode, turnWeight);
             if (!EdgeIterator.Edge.isValid(edges[key])) {
                 // add new initial entry
-                edges[key] = outIter.getEdge();
+                edges[key] = outIter.getArc();
                 incEdges[key] = incEdge;
                 adjNodes[key] = adjNode;
                 weights[key] = weight;
@@ -356,7 +358,7 @@ public class EdgeBasedWitnessPathSearcher {
             } else if (weight < weights[key]) {
                 // update existing entry, there may be entries with the same adjNode and last original edge,
                 // but we only need the one with the lowest weight
-                edges[key] = outIter.getEdge();
+                edges[key] = outIter.getArc();
                 weights[key] = weight;
                 parents[key] = parentKey;
                 isPathToCenters[key] = isPathToCenter;
@@ -423,8 +425,8 @@ public class EdgeBasedWitnessPathSearcher {
         }
     }
 
-    private void setEntry(int key, PrepareCHEdgeIterator edge, double weight, int parent, boolean isPathToCenter) {
-        edges[key] = edge.getEdge();
+    private void setEntry(int key, PrepareGraph.PrepareGraphIterator edge, double weight, int parent, boolean isPathToCenter) {
+        edges[key] = edge.getArc();
         incEdges[key] = edge.getOrigEdgeLast();
         adjNodes[key] = edge.getAdjNode();
         weights[key] = weight;
@@ -435,8 +437,8 @@ public class EdgeBasedWitnessPathSearcher {
         }
     }
 
-    private void updateEntry(int key, PrepareCHEdgeIterator edge, double weight, int currKey, boolean isPathToCenter) {
-        edges[key] = edge.getEdge();
+    private void updateEntry(int key, PrepareGraph.PrepareGraphIterator edge, double weight, int currKey, boolean isPathToCenter) {
+        edges[key] = edge.getArc();
         weights[key] = weight;
         parents[key] = currKey;
         if (isPathToCenter) {
@@ -465,16 +467,16 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private int getEdgeKey(int edge, int adjNode) {
-        int baseNode = chGraph.getOtherNode(edge, adjNode);
+        int baseNode = pch.getOtherNode(edge, adjNode);
         return GHUtility.createEdgeKey(baseNode, adjNode, edge, false);
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return chGraph.getTurnWeight(inEdge, viaNode, outEdge);
+        return pch.getTurnWeight(inEdge, viaNode, outEdge);
     }
 
     private boolean isContracted(int node) {
-        return chGraph.getLevel(node) != maxLevel;
+        return pch.getLevel(node) != maxLevel;
     }
 
     static class Params {

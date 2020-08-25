@@ -57,13 +57,14 @@ public class NodeBasedNodeContractorTest {
     private final GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("profile", weighting)).create();
     private final CHGraph lg = graph.getCHGraph();
     private final PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
+    private final PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
 
     private NodeContractor createNodeContractor() {
-        return createNodeContractor(pg);
+        return createNodeContractor(pg, prepareGraph);
     }
 
-    private NodeContractor createNodeContractor(PrepareCHGraph chGraph) {
-        NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, new PMap());
+    private NodeContractor createNodeContractor(PrepareCHGraph chGraph, PrepareGraph peegee) {
+        NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, peegee, new PMap());
         nodeContractor.initFromGraph();
         nodeContractor.prepareContraction();
         return nodeContractor;
@@ -89,8 +90,9 @@ public class NodeBasedNodeContractorTest {
     @Test
     public void testShortestPathSkipNode() {
         createExampleGraph();
+        prepareGraph.initFromGraph();
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
-        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(pg);
+        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
         setMaxLevelOnAllNodes();
 
@@ -108,9 +110,10 @@ public class NodeBasedNodeContractorTest {
     @Test
     public void testShortestPathSkipNode2() {
         createExampleGraph();
+        prepareGraph.initFromGraph();
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
         assertEquals(3, normalDist, 1e-5);
-        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(pg);
+        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
         setMaxLevelOnAllNodes();
 
@@ -126,7 +129,8 @@ public class NodeBasedNodeContractorTest {
     @Test
     public void testShortestPathLimit() {
         createExampleGraph();
-        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(pg);
+        prepareGraph.initFromGraph();
+        NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
         setMaxLevelOnAllNodes();
 
@@ -229,8 +233,9 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge2to3 = graph.edge(2, 3, 1, true);
         graph.freeze();
         setMaxLevelOnAllNodes();
-        NodeContractor nodeContractor = createNodeContractor();
-        nodeContractor.contractNode(2);
+        contractInOrder(2, 1, 3);
+//        NodeContractor nodeContractor = createNodeContractor();
+//        nodeContractor.contractNode(2);
         checkShortcuts(
                 expectedShortcut(3, 1, edge2to3, edge1to2bidirected, true, false),
                 expectedShortcut(1, 3, edge1to2directed, edge2to3, true, false)
@@ -244,7 +249,7 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge2 = graph.edge(1, 2, 2, false);
         graph.freeze();
         setMaxLevelOnAllNodes();
-        createNodeContractor().contractNode(1);
+        contractInOrder(1, 0, 2);
         checkShortcuts(expectedShortcut(0, 2, edge1, edge2, true, false));
     }
 
@@ -255,7 +260,7 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge2 = graph.edge(1, 0, 2, false);
         graph.freeze();
         setMaxLevelOnAllNodes();
-        createNodeContractor().contractNode(1);
+        contractInOrder(1, 0, 2);
         checkShortcuts(expectedShortcut(2, 0, edge1, edge2, true, false));
     }
 
@@ -265,8 +270,7 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge1 = graph.edge(0, 1, 1, true);
         final EdgeIteratorState edge2 = graph.edge(1, 2, 2, true);
         graph.freeze();
-        setMaxLevelOnAllNodes();
-        createNodeContractor().contractNode(1);
+        contractInOrder(1, 0, 2);
         checkShortcuts(expectedShortcut(2, 0, edge2, edge1, true, true));
     }
 
@@ -343,6 +347,7 @@ public class NodeBasedNodeContractorTest {
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
         PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
+        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 ------------> 4
         //  \             /
         //   1 --> 2 --> 3
@@ -357,7 +362,7 @@ public class NodeBasedNodeContractorTest {
         setMaxLevelOnAllNodes(pg);
 
         // perform CH contraction
-        contractInOrder(pg, 1, 3, 2, 0, 4);
+        contractInOrder(pg, prepareGraph, 1, 3, 2, 0, 4);
 
         // first we compare dijkstra with CH to make sure they produce the same results
         int from = 0;
@@ -382,6 +387,7 @@ public class NodeBasedNodeContractorTest {
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
         PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
+        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 - 1 - 2 - 3
         // o           o
         graph.edge(0, 1, 1, true);
@@ -392,24 +398,25 @@ public class NodeBasedNodeContractorTest {
 
         graph.freeze();
         setMaxLevelOnAllNodes(pg);
-        NodeContractor nodeContractor = createNodeContractor(pg);
+        NodeContractor nodeContractor = createNodeContractor(pg, prepareGraph);
         nodeContractor.contractNode(0);
         nodeContractor.contractNode(3);
         checkNoShortcuts(pg);
     }
 
     private void contractInOrder(int... nodeIds) {
-        contractInOrder(pg, nodeIds);
+        contractInOrder(pg, prepareGraph, nodeIds);
     }
 
-    private void contractInOrder(PrepareCHGraph chGraph, int... nodeIds) {
-        NodeContractor nodeContractor = createNodeContractor(chGraph);
+    private void contractInOrder(PrepareCHGraph chGraph, PrepareGraph pg, int... nodeIds) {
+        NodeContractor nodeContractor = createNodeContractor(chGraph, pg);
         int level = 0;
         for (int n : nodeIds) {
             nodeContractor.contractNode(n);
             chGraph.setLevel(n, level);
             level++;
         }
+        nodeContractor.remapSkipEdges();
     }
 
     /**

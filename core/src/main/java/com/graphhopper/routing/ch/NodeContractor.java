@@ -42,4 +42,6 @@ public interface NodeContractor {
     float getDijkstraSeconds();
 
     void prepareContraction();
+
+    void remapSkipEdges();
 }

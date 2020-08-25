@@ -24,22 +24,29 @@ import com.graphhopper.storage.GHDirectory;
 
 abstract class AbstractNodeContractor implements NodeContractor {
     final PrepareCHGraph prepareGraph;
-    PrepareCHEdgeExplorer inEdgeExplorer;
-    PrepareCHEdgeExplorer outEdgeExplorer;
+    final PrepareGraph pg;
+    PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
+    PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    PrepareCHEdgeExplorer inCHEdgeExplorer;
+    PrepareCHEdgeExplorer outCHEdgeExplorer;
     private final DataAccess originalEdges;
     int maxLevel;
     private int maxEdgesCount;
 
-    public AbstractNodeContractor(PrepareCHGraph prepareGraph) {
+    public AbstractNodeContractor(PrepareCHGraph prepareGraph, PrepareGraph pg) {
         this.prepareGraph = prepareGraph;
+        this.pg = pg;
         originalEdges = new GHDirectory("", DAType.RAM_INT).find("");
         originalEdges.create(1000);
     }
 
     @Override
     public void initFromGraph() {
-        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        pg.initFromGraph();
+        inEdgeExplorer = pg.createInEdgeExplorer();
+        outEdgeExplorer = pg.createOutEdgeExplorer();
+        inCHEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outCHEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         maxLevel = prepareGraph.getNodes();
         maxEdgesCount = prepareGraph.getOriginalEdges();
     }
