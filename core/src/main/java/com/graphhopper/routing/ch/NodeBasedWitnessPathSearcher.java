@@ -140,11 +140,13 @@ public class NodeBasedWitnessPathSearcher {
                     weights[adjNode] = tmpWeight;
                     heap.insert_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
+                    edgeIds[adjNode] = iter.getArc();
                 } else if (w > tmpWeight) {
                     parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
                     heap.update_(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
+                    edgeIds[adjNode] = iter.getArc();
                 }
             }
 
@@ -203,6 +205,8 @@ public class NodeBasedWitnessPathSearcher {
     }
 
     private boolean accept(PrepareGraph.PrepareGraphIterator iter, int prevOrNextEdgeId) {
+        if (iter.getArc() == prevOrNextEdgeId)
+            return false;
         return ignoreNode < 0 || iter.getAdjNode() != ignoreNode;
     }
 
