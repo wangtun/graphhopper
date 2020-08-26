@@ -92,7 +92,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
      */
     @Override
     public float calculatePriority(int node) {
-        if (prepareGraph.getLevel(node) != maxLevel)
+        if (isContracted(node))
             throw new IllegalArgumentException("Priority should only be calculated for not yet contracted nodes");
 
         // # huge influence: the bigger the less shortcuts gets created and the faster is the preparation
@@ -112,7 +112,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         int contractedNeighbors = 0;
         PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(node);
         while (iter.next()) {
-            if (!iter.isShortcut() && prepareGraph.getLevel(iter.getAdjNode()) != maxLevel) {
+            if (!iter.isShortcut() && isContracted(iter.getAdjNode())) {
                 contractedNeighbors++;
             }
         }
@@ -300,7 +300,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     private void addOrUpdateShortcut(int fromNode, int toNode, double existingDirectWeight,
                                      int outgoingEdge, int outOrigEdgeCount,
                                      int incomingEdge, int inOrigEdgeCount) {
-        pg.addOrUpdateShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, existingDirectWeight, outOrigEdgeCount + inOrigEdgeCount);
+        pg.addOrUpdateShortcut(fromNode, toNode, incomingEdge, outgoingEdge, existingDirectWeight, outOrigEdgeCount + inOrigEdgeCount);
     }
 
     private String getCoords(PrepareCHEdgeIterator edge, NodeAccess na) {
