@@ -49,14 +49,6 @@ public class PrepareCHGraph {
         this.weighting = weighting;
     }
 
-    public PrepareCHEdgeExplorer createInEdgeExplorer() {
-        return PrepareCHEdgeIteratorImpl.inEdges(chGraph.createEdgeExplorer(), weighting);
-    }
-
-    public PrepareCHEdgeExplorer createOutEdgeExplorer() {
-        return PrepareCHEdgeIteratorImpl.outEdges(chGraph.createEdgeExplorer(), weighting);
-    }
-
     public PrepareCHEdgeExplorer createAllEdgeExplorer() {
         return PrepareCHEdgeIteratorImpl.allEdges(chGraph.createEdgeExplorer(), weighting);
     }

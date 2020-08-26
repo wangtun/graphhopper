@@ -33,8 +33,6 @@ import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor extends AbstractNodeContractor {
     private final List<Shortcut> shortcuts = new ArrayList<>();
-    private final AddShortcutHandler addScHandler = new AddShortcutHandler();
-    private final CalcShortcutHandler calcScHandler = new CalcShortcutHandler();
     private final IntArrayList edgeMap = new IntArrayList();
     private final Params params = new Params();
     private PrepareCHEdgeExplorer allEdgeExplorer;
@@ -45,6 +43,9 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     // meanDegree is the number of edges / number of nodes ratio of the graph, not really the average degree, because
     // each edge can exist in both directions
     private double meanDegree;
+    // temporary counters used for priority calculation
+    private int originalEdgesCount;
+    private int shortcutsCount;
 
     NodeBasedNodeContractor(PrepareCHGraph prepareGraph, PrepareGraph pg, PMap pMap) {
         super(prepareGraph, pg);
@@ -85,16 +86,14 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     /**
-     * Warning: the calculated priority must NOT depend on priority(v) and therefore findShortcuts should also not
+     * Warning: the calculated priority must NOT depend on priority(v) and therefore handleShortcuts should also not
      * depend on the priority(v). Otherwise updating the priority before contracting in contractNodes() could lead to
      * a slowish or even endless loop.
      */
     @Override
     public float calculatePriority(int node) {
-        if (prepareGraph.getLevel(node) != maxLevel) {
+        if (isContracted(node))
             throw new IllegalArgumentException("Priority should only be calculated for not yet contracted nodes");
-        }
-        CalcShortcutsResult calcShortcutsResult = calcShortcutCount(node);
 
         // # huge influence: the bigger the less shortcuts gets created and the faster is the preparation
         //
@@ -102,7 +101,9 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // when a new shortcut is introduced then r of the associated edges is summed up:
         // r(u,w)=r(u,v)+r(v,w) now we can define
         // originalEdgesCount = σ(v) := sum_{ (u,w) ∈ shortcuts(v) } of r(u, w)
-        int originalEdgesCount = calcShortcutsResult.originalEdgesCount;
+        shortcutsCount = 0;
+        originalEdgesCount = 0;
+        handleShortcuts(node, this::countShortcut);
 
         // # lowest influence on preparation speed or shortcut creation count
         // (but according to paper should speed up queries)
@@ -111,12 +112,10 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         int contractedNeighbors = 0;
         PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(node);
         while (iter.next()) {
-            if (!iter.isShortcut() && prepareGraph.getLevel(iter.getAdjNode()) != maxLevel) {
+            if (!iter.isShortcut() && isContracted(iter.getAdjNode())) {
                 contractedNeighbors++;
             }
         }
-
-        int degree = pg.getDegree(node);
 
         // from shortcuts we can compute the edgeDifference
         // # low influence: with it the shortcut creation is slightly faster
@@ -124,7 +123,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // |shortcuts(v)| − |{(u, v) | v uncontracted}| − |{(v, w) | v uncontracted}|
         // meanDegree is used instead of outDegree+inDegree as if one adjNode is in both directions
         // only one bucket memory is used. Additionally one shortcut could also stand for two directions.
-        int edgeDifference = calcShortcutsResult.shortcutsCount - degree;
+        int edgeDifference = shortcutsCount - pg.getDegree(node);
 
         // according to the paper do a simple linear combination of the properties to get the priority.
         return params.edgeDifferenceWeight * edgeDifference +
@@ -181,8 +180,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
             }
         }
         addedShortcutsCount += writeShortcuts(shortcuts);
-        addScHandler.setNode(node);
-        long degree = findShortcuts(addScHandler);
+        long degree = handleShortcuts(node, this::addOrUpdateShortcut);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
         pg.disconnect(node);
@@ -200,15 +198,15 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
      * Returns the 'degree' of the handler's node (disregarding edges from/to already contracted nodes). Note that
      * here the degree is not the total number of adjacent edges, but only the number of incoming edges
      */
-    private long findShortcuts(ShortcutHandler sch) {
+    private long handleShortcuts(int node, ShortcutHandler handler) {
         int maxVisitedNodes = getMaxVisitedNodesEstimate();
         long degree = 0;
-        PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(sch.getNode());
+        PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
         // collect outgoing nodes (goal-nodes) only once
         while (incomingEdges.next()) {
             int fromNode = incomingEdges.getAdjNode();
             // do not consider loops at the node that is being contracted
-            if (fromNode == sch.getNode())
+            if (fromNode == node)
                 continue;
 
             final double incomingEdgeWeight = incomingEdges.getWeight();
@@ -217,14 +215,14 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
                 continue;
             }
             // collect outgoing nodes (goal-nodes) only once
-            PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(sch.getNode());
+            PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
             // force fresh maps etc as this cannot be determined by from node alone (e.g. same from node but different avoidNode)
             prepareAlgo.clear();
             degree++;
             while (outgoingEdges.next()) {
                 int toNode = outgoingEdges.getAdjNode();
                 // do not consider loops at the node that is being contracted
-                if (toNode == sch.getNode() || fromNode == toNode)
+                if (toNode == node || fromNode == toNode)
                     continue;
 
                 // Limit weight as ferries or forbidden edges can increase local search too much.
@@ -240,7 +238,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
 
                 prepareAlgo.setWeightLimit(existingDirectWeight);
                 prepareAlgo.setMaxVisitedNodes(maxVisitedNodes);
-                prepareAlgo.ignoreNode(sch.getNode());
+                prepareAlgo.ignoreNode(node);
 
                 dijkstraSW.start();
                 dijkstraCount++;
@@ -252,7 +250,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
                     // FOUND witness path, so do not add shortcut
                     continue;
 
-                sch.foundShortcut(fromNode, toNode, existingDirectWeight,
+                handler.handleShortcut(fromNode, toNode, existingDirectWeight,
                         outgoingEdges.getArc(), outgoingEdges.getOrigEdgeCount(),
                         incomingEdges.getArc(), incomingEdges.getOrigEdgeCount());
             }
@@ -261,7 +259,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     /**
-     * Adds the given shortcuts to the graph.
+     * Actually writes the given shortcuts to the graph.
      *
      * @return the actual number of shortcuts that were added to the graph
      */
@@ -292,9 +290,17 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         return tmpNewShortcuts;
     }
 
-    private CalcShortcutsResult calcShortcutCount(int node) {
-        findShortcuts(calcScHandler.setNode(node));
-        return calcScHandler.calcShortcutsResult;
+    private void countShortcut(int fromNode, int toNode, double existingDirectWeight,
+                               int outgoingEdge, int outOrigEdgeCount,
+                               int incomingEdge, int inOrigEdgeCount) {
+        shortcutsCount++;
+        originalEdgesCount += inOrigEdgeCount + outOrigEdgeCount;
+    }
+
+    private void addOrUpdateShortcut(int fromNode, int toNode, double existingDirectWeight,
+                                     int outgoingEdge, int outOrigEdgeCount,
+                                     int incomingEdge, int inOrigEdgeCount) {
+        pg.addOrUpdateShortcut(fromNode, toNode, incomingEdge, outgoingEdge, existingDirectWeight, outOrigEdgeCount + inOrigEdgeCount);
     }
 
     private String getCoords(PrepareCHEdgeIterator edge, NodeAccess na) {
@@ -330,6 +336,13 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // todo: we return 0 here if meanDegree is < 1, which is not really what we want, but changing this changes
         // the node contraction order and requires re-optimizing the parameters of the graph contraction
         return (int) meanDegree * 100;
+    }
+
+    @FunctionalInterface
+    private interface ShortcutHandler {
+        void handleShortcut(int fromNode, int toNode, double existingDirectWeight,
+                            int outgoingEdge, int outOrigEdgeCount,
+                            int incomingEdge, int inOrigEdgeCount);
     }
 
     private static class Shortcut {
@@ -384,65 +397,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
 
             return str + to + ", weight:" + weight + " (" + skippedEdge1 + "," + skippedEdge2 + ")";
         }
-    }
-
-    private interface ShortcutHandler {
-        void foundShortcut(int fromNode, int toNode, double existingDirectWeight,
-                           int outgoingEdge, int outOrigEdgeCount,
-                           int incomingEdge, int inOrigEdgeCount);
-
-        int getNode();
-    }
-
-    private class CalcShortcutHandler implements ShortcutHandler {
-        int node;
-        CalcShortcutsResult calcShortcutsResult = new CalcShortcutsResult();
-
-        @Override
-        public int getNode() {
-            return node;
-        }
-
-        public CalcShortcutHandler setNode(int node) {
-            this.node = node;
-            calcShortcutsResult.originalEdgesCount = 0;
-            calcShortcutsResult.shortcutsCount = 0;
-            return this;
-        }
-
-        @Override
-        public void foundShortcut(int fromNode, int toNode, double existingDirectWeight,
-                                  int outgoingEdge, int outOrigEdgeCount,
-                                  int incomingEdge, int inOrigEdgeCount) {
-            calcShortcutsResult.shortcutsCount++;
-            calcShortcutsResult.originalEdgesCount += inOrigEdgeCount + outOrigEdgeCount;
-        }
-    }
-
-    private class AddShortcutHandler implements ShortcutHandler {
-        int node;
-
-        @Override
-        public int getNode() {
-            return node;
-        }
-
-        public AddShortcutHandler setNode(int node) {
-            this.node = node;
-            return this;
-        }
-
-        @Override
-        public void foundShortcut(int fromNode, int toNode, double existingDirectWeight,
-                                  int outgoingEdge, int outOrigEdgeCount,
-                                  int incomingEdge, int inOrigEdgeCount) {
-            pg.addOrUpdateShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, existingDirectWeight, outOrigEdgeCount + inOrigEdgeCount);
-        }
-    }
-
-    private static class CalcShortcutsResult {
-        int originalEdgesCount;
-        int shortcutsCount;
     }
 
     public static class Params {

@@ -63,6 +63,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final StopWatch contractionSW = new StopWatch();
     private final Params params;
     private final NodeContractor nodeContractor;
+    private final int nodes;
     private NodeOrderingProvider nodeOrderingProvider;
     private PrepareCHEdgeExplorer allEdgeExplorer;
     private int maxLevel;
@@ -82,6 +83,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             throw new IllegalArgumentException("There is no CH graph '" + chConfig.getName() + "', existing: " + ghStorage.getCHGraphNames());
         this.chConfig = chConfig;
         params = Params.forTraversalMode(chConfig.getTraversalMode());
+        nodes = chGraph.getNodes();
         updatedNeighbors = new IntHashSet(50);
         if (chConfig.getTraversalMode().isEdgeBased()) {
             TurnCostStorage turnCostStorage = chGraph.getBaseGraph().getTurnCostStorage();
@@ -114,10 +116,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
      * This will speed up CH preparation, but might lead to slower queries.
      */
     public PrepareContractionHierarchies useFixedNodeOrdering(NodeOrderingProvider nodeOrderingProvider) {
-        if (nodeOrderingProvider.getNumNodes() != prepareGraph.getNodes()) {
+        if (nodeOrderingProvider.getNumNodes() != nodes) {
             throw new IllegalArgumentException(
                     "contraction order size (" + nodeOrderingProvider.getNumNodes() + ")" +
-                            " must be equal to number of nodes in graph (" + prepareGraph.getNodes() + ").");
+                            " must be equal to number of nodes in graph (" + nodes + ").");
         }
         this.nodeOrderingProvider = nodeOrderingProvider;
         return this;
@@ -141,11 +143,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private void logFinalGraphStats() {
         int edgeCount = prepareGraph.getOriginalEdges();
         logger.info("took: {}s, graph now - num edges: {}, num nodes: {}, num shortcuts: {}",
-                (int) allSW.getSeconds(), nf(edgeCount), nf(prepareGraph.getNodes()), nf(prepareGraph.getEdges() - edgeCount));
+                (int) allSW.getSeconds(), nf(edgeCount), nf(nodes), nf(prepareGraph.getEdges() - edgeCount));
     }
 
     private void runGraphContraction() {
-        if (prepareGraph.getNodes() < 1)
+        if (nodes < 1)
             return;
         setMaxLevelOnAllNodes();
         if (nodeOrderingProvider != null) {
@@ -160,7 +162,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     }
 
     private void initFromGraph() {
-        maxLevel = prepareGraph.getNodes();
+        maxLevel = nodes;
         allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
 
         // Use an alternative to PriorityQueue as it has some advantages:
@@ -169,12 +171,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         //   2. is slightly faster
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
-        oldPriorities = new float[prepareGraph.getNodes()];
+        oldPriorities = new float[nodes];
         nodeContractor.initFromGraph();
     }
 
     private void setMaxLevelOnAllNodes() {
-        final int nodes = prepareGraph.getNodes();
         for (int node = 0; node < nodes; node++) {
             prepareGraph.setLevel(node, maxLevel);
         }
@@ -183,9 +184,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private void updatePrioritiesOfRemainingNodes() {
         periodicUpdateSW.start();
         sortedNodes.clear();
-        final int nodes = prepareGraph.getNodes();
         for (int node = 0; node < nodes; node++) {
-            if (prepareGraph.getLevel(node) != maxLevel)
+            if (isContracted(node))
                 continue;
             float priority = oldPriorities[node] = calculatePriority(node);
             sortedNodes.insert(node, priority);
@@ -269,7 +269,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(polledNode);
             while (iter.next()) {
                 int nn = iter.getAdjNode();
-                if (prepareGraph.getLevel(nn) != maxLevel)
+                if (isContracted(nn))
                     continue;
 
                 if (neighborUpdate && !updatedNeighbors.contains(nn) && rand.nextInt(100) < params.getNeighborUpdatePercentage()) {
@@ -337,6 +337,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         contractionSW.stop();
     }
 
+    private boolean isContracted(int node) {
+        return prepareGraph.getLevel(node) != maxLevel;
+    }
+
     private void logHeuristicStats(int updateCounter) {
         logger.info(String.format(Locale.ROOT,
                 "%s, nodes: %10s, shortcuts: %10s, updates: %2d, checked-nodes: %10s, %s, %s, %s",
@@ -354,8 +358,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         logger.info(String.format(Locale.ROOT,
                 "nodes: %10s / %10s (%6.2f%%), shortcuts: %10s, speed = %6.2f nodes/ms, %s, %s",
                 nf(nodesContracted),
-                nf(prepareGraph.getNodes()),
-                (100.0 * nodesContracted / prepareGraph.getNodes()),
+                nf(nodes),
+                (100.0 * nodesContracted / nodes),
                 nf(nodeContractor.getAddedShortcutsCount()),
                 nodesContracted == 0 ? 0 : logSize / (double) stopWatch.getMillis(),
                 nodeContractor.getStatisticsString(),
