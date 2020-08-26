@@ -157,7 +157,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     continue;
                 shortcuts.add(new Shortcut(iter.getArc(), node, iter.getAdjNode(),
                         iter.getOrigEdgeFirst(), iter.getOrigEdgeLast(),
-                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight()));
+                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), false));
             }
         }
         {
@@ -167,14 +167,15 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     continue;
                 if (iter.getAdjNode() == node)
                     continue;
-                shortcuts.add(new Shortcut(iter.getArc(), iter.getAdjNode(), node,
+                shortcuts.add(new Shortcut(iter.getArc(), node, iter.getAdjNode(),
                         iter.getOrigEdgeFirst(), iter.getOrigEdgeLast(),
                         iter.getSkipped1(), iter.getSkipped2(),
-                        iter.getWeight()));
+                        iter.getWeight(), true));
             }
         }
         for (Shortcut sc : shortcuts) {
-            int scId = prepareGraph.shortcutEdgeBased(sc.from, sc.to, PrepareEncoder.getScFwdDir(),
+            int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
+            int scId = prepareGraph.shortcutEdgeBased(sc.from, sc.to, flags,
                     sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
             if (sc.arc >= edgeMap.size())
                 edgeMap.resize(sc.arc + 1);
@@ -194,8 +195,9 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         private final int skip1;
         private final int skip2;
         private final double weight;
+        private final boolean reverse;
 
-        public Shortcut(int arc, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight) {
+        public Shortcut(int arc, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight, boolean reverse) {
             this.arc = arc;
             this.from = from;
             this.to = to;
@@ -204,6 +206,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             this.skip1 = skip1;
             this.skip2 = skip2;
             this.weight = weight;
+            this.reverse = reverse;
         }
 
         @Override

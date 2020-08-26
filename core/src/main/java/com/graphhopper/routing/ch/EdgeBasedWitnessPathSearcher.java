@@ -65,8 +65,7 @@ public class EdgeBasedWitnessPathSearcher {
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
     // graph variables
-    private final PrepareGraph chGraph;
-    private final PrepareCHGraph pch;
+    private final PrepareCHGraph chGraph;
     private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final PrepareCHEdgeExplorer origInEdgeExplorer;
     private final int maxLevel;
@@ -106,17 +105,16 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareGraph chGraph, PrepareCHGraph pch, PMap pMap) {
+    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, PrepareCHGraph chGraph, PMap pMap) {
         this.chGraph = chGraph;
-        this.pch = pch;
         extractParams(pMap);
 
-        outEdgeExplorer = chGraph.createOutEdgeExplorer();
-        origInEdgeExplorer = pch.createOriginalInEdgeExplorer();
-        maxLevel = chGraph.getNodes();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        origInEdgeExplorer = chGraph.createOriginalInEdgeExplorer();
+        maxLevel = prepareGraph.getNodes();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
-        int numOriginalEdges = pch.getOriginalEdges();
+        int numOriginalEdges = chGraph.getOriginalEdges();
         initStorage(2 * numOriginalEdges);
         initCollections();
     }
@@ -467,16 +465,16 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private int getEdgeKey(int edge, int adjNode) {
-        int baseNode = pch.getOtherNode(edge, adjNode);
+        int baseNode = chGraph.getOtherNode(edge, adjNode);
         return GHUtility.createEdgeKey(baseNode, adjNode, edge, false);
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return pch.getTurnWeight(inEdge, viaNode, outEdge);
+        return chGraph.getTurnWeight(inEdge, viaNode, outEdge);
     }
 
     private boolean isContracted(int node) {
-        return pch.getLevel(node) != maxLevel;
+        return chGraph.getLevel(node) != maxLevel;
     }
 
     static class Params {

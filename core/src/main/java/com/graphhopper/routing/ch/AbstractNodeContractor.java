@@ -27,8 +27,6 @@ abstract class AbstractNodeContractor implements NodeContractor {
     final PrepareGraph pg;
     PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    PrepareCHEdgeExplorer inCHEdgeExplorer;
-    PrepareCHEdgeExplorer outCHEdgeExplorer;
     private final DataAccess originalEdges;
     int maxLevel;
     private int maxEdgesCount;
@@ -45,8 +43,6 @@ abstract class AbstractNodeContractor implements NodeContractor {
         pg.initFromGraph();
         inEdgeExplorer = pg.createInEdgeExplorer();
         outEdgeExplorer = pg.createOutEdgeExplorer();
-        inCHEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outCHEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         maxLevel = prepareGraph.getNodes();
         maxEdgesCount = prepareGraph.getOriginalEdges();
     }

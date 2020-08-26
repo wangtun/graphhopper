@@ -65,7 +65,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final NodeContractor nodeContractor;
     private NodeOrderingProvider nodeOrderingProvider;
     private PrepareCHEdgeExplorer allEdgeExplorer;
-    private PrepareCHEdgeExplorer disconnectExplorer;
     private int maxLevel;
     // nodes with highest priority come last
     private GHTreeMapComposed sortedNodes;
@@ -163,7 +162,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private void initFromGraph() {
         maxLevel = prepareGraph.getNodes();
         allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
-        disconnectExplorer = prepareGraph.createAllEdgeExplorer();
 
         // Use an alternative to PriorityQueue as it has some advantages:
         //   1. Gets automatically smaller if less entries are stored => less total RAM used.
@@ -284,8 +282,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
                     }
                     neighborUpdateSW.stop();
                 }
-
-                prepareGraph.disconnect(disconnectExplorer, iter);
             }
         }
 
@@ -319,14 +315,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             stopIfInterrupted();
             int node = nodeOrderingProvider.getNodeIdForLevel(i);
             contractNode(node, i);
-
-            // disconnect neighbors
-            PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(node);
-            while (iter.next()) {
-                if (prepareGraph.getLevel(iter.getAdjNode()) != maxLevel)
-                    continue;
-                prepareGraph.disconnect(disconnectExplorer, iter);
-            }
             if (i % logSize == 0) {
                 stopWatch.stop();
                 logFixedNodeOrderingStats(i, logSize, stopWatch);
