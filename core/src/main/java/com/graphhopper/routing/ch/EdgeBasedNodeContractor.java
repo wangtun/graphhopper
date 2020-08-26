@@ -419,7 +419,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     private class CountingShortcutHandler implements ShortcutHandler {
-        private final Stats stats = new Stats();
+        private Stats stats = new Stats();
 
         @Override
         public void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo) {

@@ -547,6 +547,36 @@ public class PrepareContractionHierarchiesTest {
         assertEquals(2, prepare.getShortcuts());
     }
 
+    // 0-1-2-3-4
+    // |     / |
+    // |    8  |
+    // \   /   /
+    //  7-6-5-/
+    void initBiGraph(Graph graph) {
+        graph.edge(0, 1, 100, true);
+        graph.edge(1, 2, 1, true);
+        graph.edge(2, 3, 1, true);
+        graph.edge(3, 4, 1, true);
+        graph.edge(4, 5, 25, true);
+        graph.edge(5, 6, 25, true);
+        graph.edge(6, 7, 5, true);
+        graph.edge(7, 0, 5, true);
+        graph.edge(3, 8, 20, true);
+        graph.edge(8, 6, 20, true);
+    }
+
+    //    public static void printEdges(CHGraph g) {
+//        RawEdgeIterator iter = g.getAllEdges();
+//        while (iter.next()) {
+//            EdgeSkipIterator single = g.getEdgeProps(iter.edge(), iter.nodeB());
+//            System.out.println(iter.nodeA() + "<->" + iter.nodeB() + " \\"
+//                    + single.skippedEdge1() + "," + single.skippedEdge2() + " (" + iter.edge() + ")"
+//                    + ", dist: " + (float) iter.weight()
+//                    + ", level:" + g.getLevel(iter.nodeA()) + "<->" + g.getLevel(iter.nodeB())
+//                    + ", bothDir:" + CarFlagEncoder.isBoth(iter.setProperties()));
+//        }
+//        System.out.println("---");
+//    }
     @Test
     public void testBits() {
         int fromNode = Integer.MAX_VALUE / 3 * 2;

@@ -91,19 +91,23 @@ public class PrepareGraph {
         return arcs - 1;
     }
 
-    public void addOrUpdateShortcut(int from, int to, int skipped1, int skipped2, double weight, int origEdgeCount) {
+    public void addOrUpdateShortcut(int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
         boolean exists = false;
         for (Arc arc : outArcs.get(from)) {
             if (arc.adjNode == to && arc.isShortcut()) {
                 exists = true;
                 if (weight < arc.weight) {
                     arc.weight = weight;
+                    arc.origEdgeFirst = origEdgeFirst;
+                    arc.origEdgeLast = origEdgeLast;
                     arc.skipped1 = skipped1;
                     arc.skipped2 = skipped2;
                     arc.origEdgeCount = origEdgeCount;
                     for (Arc aa : inArcs.get(to)) {
                         if (aa.adjNode == from) {
                             aa.weight = weight;
+                            aa.origEdgeFirst = origEdgeFirst;
+                            aa.origEdgeLast = origEdgeLast;
                             aa.skipped1 = skipped1;
                             aa.skipped2 = skipped2;
                             aa.origEdgeCount = origEdgeCount;
@@ -113,7 +117,7 @@ public class PrepareGraph {
             }
         }
         if (!exists)
-            addShortcut(from, to, -1, -1, skipped1, skipped2, weight, origEdgeCount);
+            addShortcut(from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, origEdgeCount);
     }
 
     public PrepareGraphExplorer createOutEdgeExplorer() {
@@ -270,8 +274,8 @@ public class PrepareGraph {
         private final int arc;
         private final int adjNode;
         private double weight;
-        private final int origEdgeFirst;
-        private final int origEdgeLast;
+        private int origEdgeFirst;
+        private int origEdgeLast;
         private int skipped1;
         private int skipped2;
         private int origEdgeCount;
