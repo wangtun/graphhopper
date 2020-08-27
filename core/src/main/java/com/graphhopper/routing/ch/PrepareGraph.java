@@ -18,6 +18,8 @@
 
 package com.graphhopper.routing.ch;
 
+import com.carrotsearch.hppc.IntHashSet;
+import com.carrotsearch.hppc.IntSet;
 import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
@@ -124,13 +126,19 @@ public class PrepareGraph {
         return new PrepareGraphExplorerImpl(inArcs);
     }
 
-    public void disconnect(int node) {
-        for (Arc arc : outArcs.get(node))
+    public IntSet disconnect(int node) {
+        IntSet neighbors = new IntHashSet(getDegree(node));
+        for (Arc arc : outArcs.get(node)) {
             inArcs.get(arc.adjNode).removeIf(a -> a.adjNode == node);
-        for (Arc arc : inArcs.get(node))
+            neighbors.add(arc.adjNode);
+        }
+        for (Arc arc : inArcs.get(node)) {
             outArcs.get(arc.adjNode).removeIf(a -> a.adjNode == node);
+            neighbors.add(arc.adjNode);
+        }
         outArcs.get(node).clear();
         inArcs.get(node).clear();
+        return neighbors;
     }
 
     public interface PrepareGraphExplorer {

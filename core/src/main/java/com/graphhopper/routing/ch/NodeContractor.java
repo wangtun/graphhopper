@@ -18,6 +18,8 @@
 
 package com.graphhopper.routing.ch;
 
+import com.carrotsearch.hppc.IntSet;
+
 public interface NodeContractor {
     void initFromGraph();
 
@@ -31,7 +33,7 @@ public interface NodeContractor {
     /**
      * Adds the required shortcuts for the given node.
      */
-    void contractNode(int node);
+    IntSet contractNode(int node);
 
     long getAddedShortcutsCount();
 

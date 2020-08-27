@@ -17,8 +17,8 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.cursors.IntCursor;
 import com.graphhopper.coll.GHTreeMapComposed;
 import com.graphhopper.routing.util.AbstractAlgoPreparation;
 import com.graphhopper.routing.util.TraversalMode;
@@ -55,7 +55,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final CHGraph chGraph;
     private final PrepareCHGraph prepareGraph;
     private final Random rand = new Random(123);
-    private final IntSet updatedNeighbors;
     private final StopWatch allSW = new StopWatch();
     private final StopWatch periodicUpdateSW = new StopWatch();
     private final StopWatch lazyUpdateSW = new StopWatch();
@@ -65,7 +64,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final NodeContractor nodeContractor;
     private final int nodes;
     private NodeOrderingProvider nodeOrderingProvider;
-    private PrepareCHEdgeExplorer allEdgeExplorer;
     private int maxLevel;
     // nodes with highest priority come last
     private GHTreeMapComposed sortedNodes;
@@ -84,7 +82,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         this.chConfig = chConfig;
         params = Params.forTraversalMode(chConfig.getTraversalMode());
         nodes = chGraph.getNodes();
-        updatedNeighbors = new IntHashSet(50);
         if (chConfig.getTraversalMode().isEdgeBased()) {
             TurnCostStorage turnCostStorage = chGraph.getBaseGraph().getTurnCostStorage();
             if (turnCostStorage == null) {
@@ -163,8 +160,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
 
     private void initFromGraph() {
         maxLevel = nodes;
-        allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
-
         // Use an alternative to PriorityQueue as it has some advantages:
         //   1. Gets automatically smaller if less entries are stored => less total RAM used.
         //      Important because Graph is increasing until the end.
@@ -257,7 +252,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             }
 
             // contract node v!
-            contractNode(polledNode, level);
+            IntSet neighbors = contractNode(polledNode, level);
             level++;
 
             if (sortedNodes.getSize() < nodesToAvoidContract)
@@ -265,20 +260,14 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
                 break;
 
             // there might be multiple edges going to the same neighbor nodes -> only calculate priority once per node
-            updatedNeighbors.clear();
-            PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(polledNode);
-            while (iter.next()) {
-                int nn = iter.getAdjNode();
-                if (isContracted(nn))
-                    continue;
-
-                if (neighborUpdate && !updatedNeighbors.contains(nn) && rand.nextInt(100) < params.getNeighborUpdatePercentage()) {
+            for (IntCursor neighbor : neighbors) {
+                int nn = neighbor.value;
+                if (neighborUpdate && rand.nextInt(100) < params.getNeighborUpdatePercentage()) {
                     neighborUpdateSW.start();
                     float oldPrio = oldPriorities[nn];
                     float priority = oldPriorities[nn] = calculatePriority(nn);
                     if (priority != oldPrio) {
                         sortedNodes.update(nn, oldPrio, priority);
-                        updatedNeighbors.add(nn);
                     }
                     neighborUpdateSW.stop();
                 }
@@ -330,11 +319,12 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         }
     }
 
-    private void contractNode(int node, int level) {
+    private IntSet contractNode(int node, int level) {
         contractionSW.start();
-        nodeContractor.contractNode(node);
+        IntSet neighbors = nodeContractor.contractNode(node);
         prepareGraph.setLevel(node, level);
         contractionSW.stop();
+        return neighbors;
     }
 
     private boolean isContracted(int node) {

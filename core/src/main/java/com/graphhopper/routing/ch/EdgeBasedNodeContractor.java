@@ -145,7 +145,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     @Override
-    public void contractNode(int node) {
+    public IntSet contractNode(int node) {
         activeShortcutHandler = addingShortcutHandler;
         stats().stopWatch.start();
         findAndHandleShortcuts(node);
@@ -182,8 +182,9 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             edgeMap.set(sc.arc, scId);
         }
         updateHierarchyDepthsOfNeighbors(node);
-        pg.disconnect(node);
+        IntSet neighbors = pg.disconnect(node);
         stats().stopWatch.stop();
+        return neighbors;
     }
 
     private static class Shortcut {

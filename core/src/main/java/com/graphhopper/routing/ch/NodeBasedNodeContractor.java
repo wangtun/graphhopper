@@ -18,6 +18,7 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntArrayList;
+import com.carrotsearch.hppc.IntSet;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.util.PMap;
@@ -142,7 +143,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     @Override
-    public void contractNode(int node) {
+    public IntSet contractNode(int node) {
         shortcuts.clear();
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
@@ -183,7 +184,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         long degree = handleShortcuts(node, this::addOrUpdateShortcut);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
-        pg.disconnect(node);
+        return pg.disconnect(node);
     }
 
     @Override
