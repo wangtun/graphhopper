@@ -178,6 +178,7 @@ public class PrepareGraph {
     public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
         private final List<List<Arc>> arcs;
         private int node;
+        private List<Arc> arcsAtNode;
         private int index;
 
         PrepareGraphExplorerImpl(List<List<Arc>> arcs) {
@@ -187,6 +188,7 @@ public class PrepareGraph {
         @Override
         public PrepareGraphIterator setBaseNode(int node) {
             this.node = node;
+            this.arcsAtNode = arcs.get(node);
             this.index = -1;
             return this;
         }
@@ -194,7 +196,7 @@ public class PrepareGraph {
         @Override
         public boolean next() {
             index++;
-            return index < arcs.get(node).size();
+            return index < arcsAtNode.size();
         }
 
         @Override
@@ -204,12 +206,12 @@ public class PrepareGraph {
 
         @Override
         public int getAdjNode() {
-            return arcs.get(node).get(index).adjNode;
+            return arcsAtNode.get(index).adjNode;
         }
 
         @Override
         public int getArc() {
-            int arc = arcs.get(node).get(index).arc;
+            int arc = arcsAtNode.get(index).arc;
             if (!isShortcut()) {
                 assert getEdge() == arc;
             }
@@ -218,54 +220,54 @@ public class PrepareGraph {
 
         @Override
         public boolean isShortcut() {
-            return arcs.get(node).get(index).isShortcut();
+            return arcsAtNode.get(index).isShortcut();
         }
 
         @Override
         public int getOrigEdgeFirst() {
-            return arcs.get(node).get(index).origEdgeFirst;
+            return arcsAtNode.get(index).origEdgeFirst;
         }
 
         @Override
         public int getOrigEdgeLast() {
-            return arcs.get(node).get(index).origEdgeLast;
+            return arcsAtNode.get(index).origEdgeLast;
         }
 
         @Override
         public int getSkipped1() {
-            return arcs.get(node).get(index).skipped1;
+            return arcsAtNode.get(index).skipped1;
         }
 
         @Override
         public int getSkipped2() {
-            return arcs.get(node).get(index).skipped2;
+            return arcsAtNode.get(index).skipped2;
         }
 
         @Override
         public int getEdge() {
             assert !isShortcut();
-            return arcs.get(node).get(index).origEdgeFirst;
+            return arcsAtNode.get(index).origEdgeFirst;
         }
 
         @Override
         public double getWeight() {
-            return arcs.get(node).get(index).weight;
+            return arcsAtNode.get(index).weight;
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return arcs.get(node).get(index).origEdgeCount;
+            return arcsAtNode.get(index).origEdgeCount;
         }
 
         @Override
         public void setSkippedEdges(int skipped1, int skipped2) {
-            arcs.get(node).get(index).skipped1 = skipped1;
-            arcs.get(node).get(index).skipped2 = skipped2;
+            arcsAtNode.get(index).skipped1 = skipped1;
+            arcsAtNode.get(index).skipped2 = skipped2;
         }
 
         @Override
         public void setWeight(double weight) {
-            arcs.get(node).get(index).weight = weight;
+            arcsAtNode.get(index).weight = weight;
         }
 
         @Override
