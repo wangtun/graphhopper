@@ -82,13 +82,15 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        outArcs.get(from).add(Arc.edge(edge, to, edge, weight));
-        inArcs.get(to).add(Arc.edge(edge, from, edge, weight));
+        Arc arc = Arc.edge(edge, from, to, edge, weight);
+        outArcs.get(from).add(arc);
+        inArcs.get(to).add(arc);
     }
 
     public int addShortcut(int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        outArcs.get(from).add(Arc.shortcut(arcs, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, origEdgeCount));
-        inArcs.get(to).add(Arc.shortcut(arcs, from, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, origEdgeCount));
+        Arc arc = Arc.shortcut(arcs, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, origEdgeCount);
+        outArcs.get(from).add(arc);
+        inArcs.get(to).add(arc);
         arcs++;
         return arcs - 1;
     }
@@ -103,14 +105,6 @@ public class PrepareGraph {
                     arc.skipped1 = skipped1;
                     arc.skipped2 = skipped2;
                     arc.origEdgeCount = origEdgeCount;
-                    for (Arc aa : inArcs.get(to)) {
-                        if (aa.adjNode == from) {
-                            aa.weight = weight;
-                            aa.skipped1 = skipped1;
-                            aa.skipped2 = skipped2;
-                            aa.origEdgeCount = origEdgeCount;
-                        }
-                    }
                 }
             }
         }
@@ -119,22 +113,22 @@ public class PrepareGraph {
     }
 
     public PrepareGraphExplorer createOutEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(outArcs);
+        return new PrepareGraphExplorerImpl(outArcs, false);
     }
 
     public PrepareGraphExplorer createInEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(inArcs);
+        return new PrepareGraphExplorerImpl(inArcs, true);
     }
 
     public IntSet disconnect(int node) {
         IntSet neighbors = new IntHashSet(getDegree(node));
         for (Arc arc : outArcs.get(node)) {
-            inArcs.get(arc.adjNode).removeIf(a -> a.adjNode == node);
+            inArcs.get(arc.adjNode).removeIf(a -> a == arc);
             neighbors.add(arc.adjNode);
         }
         for (Arc arc : inArcs.get(node)) {
-            outArcs.get(arc.adjNode).removeIf(a -> a.adjNode == node);
-            neighbors.add(arc.adjNode);
+            outArcs.get(arc.baseNode).removeIf(a -> a == arc);
+            neighbors.add(arc.baseNode);
         }
         outArcs.get(node).clear();
         inArcs.get(node).clear();
@@ -177,17 +171,17 @@ public class PrepareGraph {
 
     public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
         private final List<List<Arc>> arcs;
-        private int node;
+        private final boolean reverse;
         private List<Arc> arcsAtNode;
         private int index;
 
-        PrepareGraphExplorerImpl(List<List<Arc>> arcs) {
+        PrepareGraphExplorerImpl(List<List<Arc>> arcs, boolean reverse) {
             this.arcs = arcs;
+            this.reverse = reverse;
         }
 
         @Override
         public PrepareGraphIterator setBaseNode(int node) {
-            this.node = node;
             this.arcsAtNode = arcs.get(node);
             this.index = -1;
             return this;
@@ -201,21 +195,17 @@ public class PrepareGraph {
 
         @Override
         public int getBaseNode() {
-            return node;
+            return reverse ? arcsAtNode.get(index).adjNode : arcsAtNode.get(index).baseNode;
         }
 
         @Override
         public int getAdjNode() {
-            return arcsAtNode.get(index).adjNode;
+            return reverse ? arcsAtNode.get(index).baseNode : arcsAtNode.get(index).adjNode;
         }
 
         @Override
         public int getArc() {
-            int arc = arcsAtNode.get(index).arc;
-            if (!isShortcut()) {
-                assert getEdge() == arc;
-            }
-            return arc;
+            return arcsAtNode.get(index).arc;
         }
 
         @Override
@@ -278,6 +268,7 @@ public class PrepareGraph {
 
     public static class Arc {
         private final int arc;
+        private final int baseNode;
         private final int adjNode;
         private double weight;
         private final int origEdgeFirst;
@@ -286,16 +277,17 @@ public class PrepareGraph {
         private int skipped2;
         private int origEdgeCount;
 
-        private static Arc edge(int arc, int adjNode, int edge, double weight) {
-            return new Arc(arc, adjNode, weight, edge, edge, -1, -1, 1);
+        private static Arc edge(int arc, int baseNode, int adjNode, int edge, double weight) {
+            return new Arc(arc, baseNode, adjNode, weight, edge, edge, -1, -1, 1);
         }
 
-        private static Arc shortcut(int arc, int adjNode, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new Arc(arc, adjNode, weight, origEdgeFirst, origEdgeLast, skipped1, skipped2, origEdgeCount);
+        private static Arc shortcut(int arc, int baseNode, int adjNode, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new Arc(arc, baseNode, adjNode, weight, origEdgeFirst, origEdgeLast, skipped1, skipped2, origEdgeCount);
         }
 
-        private Arc(int arc, int adjNode, double weight, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, int origEdgeCount) {
+        private Arc(int arc, int baseNode, int adjNode, double weight, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, int origEdgeCount) {
             this.arc = arc;
+            this.baseNode = baseNode;
             this.adjNode = adjNode;
             this.weight = weight;
             this.origEdgeFirst = origEdgeFirst;
@@ -311,7 +303,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return "-- " + adjNode + " (" + origEdgeFirst + ", " + origEdgeLast + ") " + weight;
+            return baseNode + "-" + adjNode + " (" + origEdgeFirst + ", " + origEdgeLast + ") " + weight;
         }
     }
 }
