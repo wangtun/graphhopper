@@ -253,8 +253,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     private void countPreviousEdges(int node) {
         PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(node);
         while (outIter.next()) {
-            if (isContracted(outIter.getAdjNode()))
-                continue;
             numPrevEdges++;
             if (!outIter.isShortcut()) {
                 numPrevOrigEdges++;
@@ -265,8 +263,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
 
         PrepareGraph.PrepareGraphIterator inIter = inEdgeExplorer.setBaseNode(node);
         while (inIter.next()) {
-            if (isContracted(inIter.getAdjNode()))
-                continue;
             // do not consider loop edges a second time
             if (inIter.getBaseNode() == inIter.getAdjNode())
                 continue;
@@ -283,7 +279,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
-                if (isContracted(iter.getAdjNode()) || iter.getAdjNode() == node)
+                if (iter.getAdjNode() == node)
                     continue;
                 hierarchyDepths[iter.getAdjNode()] = Math.max(hierarchyDepths[iter.getAdjNode()], hierarchyDepths[node] + 1);
             }
@@ -291,7 +287,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         {
             PrepareGraph.PrepareGraphIterator iter = inEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
-                if (isContracted(iter.getAdjNode()) || iter.getAdjNode() == node)
+                if (iter.getAdjNode() == node)
                     continue;
                 hierarchyDepths[iter.getAdjNode()] = Math.max(hierarchyDepths[iter.getAdjNode()], hierarchyDepths[node] + 1);
             }
@@ -510,7 +506,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
             while (incomingEdges.next()) {
                 int sourceNode = incomingEdges.getAdjNode();
-                if (isContracted(sourceNode) || sourceNode == node) {
+                if (sourceNode == node) {
                     continue;
                 }
                 boolean isNewSourceNode = sourceNodes.add(sourceNode);
@@ -530,7 +526,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
                     while (outgoingEdges.next()) {
                         int targetNode = outgoingEdges.getAdjNode();
-                        if (isContracted(targetNode) || targetNode == node) {
+                        if (targetNode == node) {
                             continue;
                         }
                         boolean isNewTargetNode = toNodes.add(targetNode);
