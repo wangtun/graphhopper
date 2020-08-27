@@ -18,24 +18,17 @@
 
 package com.graphhopper.routing.ch;
 
-import com.graphhopper.storage.DAType;
-import com.graphhopper.storage.DataAccess;
-import com.graphhopper.storage.GHDirectory;
-
 abstract class AbstractNodeContractor implements NodeContractor {
     final PrepareCHGraph prepareGraph;
     final PrepareGraph pg;
     PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private final DataAccess originalEdges;
+    PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
     int maxLevel;
-    private int maxEdgesCount;
 
     public AbstractNodeContractor(PrepareCHGraph prepareGraph, PrepareGraph pg) {
         this.prepareGraph = prepareGraph;
         this.pg = pg;
-        originalEdges = new GHDirectory("", DAType.RAM_INT).find("");
-        originalEdges.create(1000);
     }
 
     @Override
@@ -43,42 +36,15 @@ abstract class AbstractNodeContractor implements NodeContractor {
         pg.initFromGraph();
         inEdgeExplorer = pg.createInEdgeExplorer();
         outEdgeExplorer = pg.createOutEdgeExplorer();
+        existingShortcutExplorer = pg.createOutEdgeExplorer();
         maxLevel = prepareGraph.getNodes();
-        maxEdgesCount = prepareGraph.getOriginalEdges();
-    }
-
-    @Override
-    public void close() {
-        originalEdges.close();
     }
 
     boolean isContracted(int node) {
         return prepareGraph.getLevel(node) != maxLevel;
     }
 
-    void setOrigEdgeCount(int edgeId, int value) {
-        edgeId -= maxEdgesCount;
-        if (edgeId < 0) {
-            // ignore setting as every normal edge has original edge count of 1
-            if (value != 1)
-                throw new IllegalStateException("Trying to set original edge count for normal edge to a value = " + value
-                        + ", edge:" + (edgeId + maxEdgesCount) + ", max:" + maxEdgesCount + ", graph.max:" +
-                        prepareGraph.getEdges());
-            return;
-        }
-
-        long tmp = (long) edgeId * 4;
-        originalEdges.ensureCapacity(tmp + 4);
-        originalEdges.setInt(tmp, value);
-    }
-
-    int getOrigEdgeCount(int edgeId) {
-        edgeId -= maxEdgesCount;
-        if (edgeId < 0)
-            return 1;
-
-        long tmp = (long) edgeId * 4;
-        originalEdges.ensureCapacity(tmp + 4);
-        return originalEdges.getInt(tmp);
+    @Override
+    public void close() {
     }
 }

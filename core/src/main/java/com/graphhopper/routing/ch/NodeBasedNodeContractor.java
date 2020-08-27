@@ -284,8 +284,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
                     edgeMap.resize(sc.arcBwd + 1);
                 edgeMap.set(sc.arcBwd, scId);
             }
-            setOrigEdgeCount(scId, sc.originalEdges);
-
             tmpNewShortcuts++;
         }
         return tmpNewShortcuts;
@@ -298,10 +296,23 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         originalEdgesCount += inOrigEdgeCount + outOrigEdgeCount;
     }
 
-    private void addOrUpdateShortcut(int fromNode, int toNode, double existingDirectWeight,
+    private void addOrUpdateShortcut(int fromNode, int toNode, double weight,
                                      int outgoingEdge, int outOrigEdgeCount,
                                      int incomingEdge, int inOrigEdgeCount) {
-        pg.addOrUpdateShortcut(fromNode, toNode, incomingEdge, outgoingEdge, existingDirectWeight, outOrigEdgeCount + inOrigEdgeCount);
+        boolean exists = false;
+        PrepareGraph.PrepareGraphIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
+        while (iter.next()) {
+            if (iter.getAdjNode() == toNode && iter.isShortcut()) {
+                exists = true;
+                if (weight < iter.getWeight()) {
+                    iter.setWeight(weight);
+                    iter.setSkippedEdges(incomingEdge, outgoingEdge);
+                    iter.setOrigEdgeCount(inOrigEdgeCount + outOrigEdgeCount);
+                }
+            }
+        }
+        if (!exists)
+            pg.addShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, weight, inOrigEdgeCount + outOrigEdgeCount);
     }
 
     private String getCoords(PrepareCHEdgeIterator edge, NodeAccess na) {

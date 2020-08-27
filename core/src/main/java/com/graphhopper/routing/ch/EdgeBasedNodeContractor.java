@@ -56,7 +56,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
     private int[] hierarchyDepths;
     private EdgeBasedWitnessPathSearcher witnessPathSearcher;
-    private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
     private PrepareCHEdgeExplorer sourceNodeOrigInEdgeExplorer;
     private PrepareCHEdgeExplorer targetNodeOrigOutEdgeExplorer;
     private PrepareCHEdgeExplorer loopAvoidanceInEdgeExplorer;
@@ -94,9 +93,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             edgeMap.set(i, i);
         }
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(pg, prepareGraph, pMap);
-        inEdgeExplorer = pg.createInEdgeExplorer();
-        outEdgeExplorer = pg.createOutEdgeExplorer();
-        existingShortcutExplorer = pg.createOutEdgeExplorer();
         sourceNodeOrigInEdgeExplorer = prepareGraph.createOriginalInEdgeExplorer();
         targetNodeOrigOutEdgeExplorer = prepareGraph.createOriginalOutEdgeExplorer();
         loopAvoidanceInEdgeExplorer = prepareGraph.createOriginalInEdgeExplorer();
@@ -169,8 +165,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     continue;
                 shortcuts.add(new Shortcut(iter.getArc(), node, iter.getAdjNode(),
                         iter.getOrigEdgeFirst(), iter.getOrigEdgeLast(),
-                        iter.getSkipped1(), iter.getSkipped2(),
-                        iter.getWeight(), true));
+                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true));
             }
         }
         for (Shortcut sc : shortcuts) {
@@ -257,7 +252,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             if (!outIter.isShortcut()) {
                 numPrevOrigEdges++;
             } else {
-                numPrevOrigEdges += getOrigEdgeCount(outIter.getArc());
+                numPrevOrigEdges += outIter.getOrigEdgeCount();
             }
         }
 
@@ -270,7 +265,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             if (!inIter.isShortcut()) {
                 numPrevOrigEdges++;
             } else {
-                numPrevOrigEdges += getOrigEdgeCount(inIter.getArc());
+                numPrevOrigEdges += inIter.getOrigEdgeCount();
             }
         }
     }
@@ -294,7 +289,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         }
     }
 
-    private void handleShortcuts(CHEntry chEntry, CHEntry root) {
+    private void handleShortcuts(CHEntry chEntry, CHEntry root, int origEdgeCount) {
         LOGGER.trace("Adding shortcuts for target entry {}", chEntry);
         if (root.parent.adjNode == chEntry.adjNode &&
                 //here we misuse root.parent.incEdge as first orig edge of the potential shortcut
@@ -303,7 +298,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             stats().loopsAvoided++;
             return;
         }
-        activeShortcutHandler.handleShortcut(root, chEntry);
+        activeShortcutHandler.handleShortcut(root, chEntry, origEdgeCount);
     }
 
     /**
@@ -315,16 +310,16 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         return true;
     }
 
-    private CHEntry addShortcut(CHEntry edgeFrom, CHEntry edgeTo) {
+    private CHEntry addShortcut(CHEntry edgeFrom, CHEntry edgeTo, int origEdgeCount) {
         if (edgeTo.parent.edge != edgeFrom.edge) {
-            CHEntry prev = addShortcut(edgeFrom, edgeTo.getParent());
-            return doAddShortcut(prev, edgeTo);
+            CHEntry prev = addShortcut(edgeFrom, edgeTo.getParent(), origEdgeCount);
+            return doAddShortcut(prev, edgeTo, origEdgeCount);
         } else {
-            return doAddShortcut(edgeFrom, edgeTo);
+            return doAddShortcut(edgeFrom, edgeTo, origEdgeCount);
         }
     }
 
-    private CHEntry doAddShortcut(CHEntry edgeFrom, CHEntry edgeTo) {
+    private CHEntry doAddShortcut(CHEntry edgeFrom, CHEntry edgeTo, int origEdgeCount) {
         int from = edgeFrom.parent.adjNode;
         int adjNode = edgeTo.adjNode;
 
@@ -355,9 +350,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         int origFirst = edgeFrom.getParent().incEdge;
         LOGGER.trace("Adding shortcut from {} to {}, weight: {}, firstOrigEdge: {}, lastOrigEdge: {}",
                 from, adjNode, edgeTo.weight, origFirst, edgeTo.incEdge);
-        final int origEdgeCount = getOrigEdgeCount(edgeFrom.edge) + getOrigEdgeCount(edgeTo.edge);
         int arc = pg.addShortcut(from, adjNode, origFirst, edgeTo.incEdge, edgeFrom.edge, edgeTo.edge, edgeTo.weight, origEdgeCount);
-        setOrigEdgeCount(arc, origEdgeCount);
         addedShortcutsCount++;
         int incEdge = -1;
         CHEntry entry = new CHEntry(arc, incEdge, edgeTo.adjNode, edgeTo.weight);
@@ -389,7 +382,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
 
     private interface ShortcutHandler {
 
-        void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo);
+        void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo, int origEdgeCount);
 
         Stats getStats();
 
@@ -400,8 +393,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         private final Stats stats = new Stats();
 
         @Override
-        public void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo) {
-            addShortcut(edgeFrom, edgeTo);
+        public void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo, int origEdgeCount) {
+            addShortcut(edgeFrom, edgeTo, origEdgeCount);
         }
 
         @Override
@@ -419,7 +412,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         private final Stats stats = new Stats();
 
         @Override
-        public void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo) {
+        public void handleShortcut(CHEntry edgeFrom, CHEntry edgeTo, int origEdgeCount) {
             int fromNode = edgeFrom.parent.adjNode;
             int toNode = edgeTo.adjNode;
             int firstOrigEdge = edgeFrom.getParent().incEdge;
@@ -437,7 +430,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
 
             // this shortcut is new --> increase counts
             numShortcuts++;
-            numOrigEdges += getOrigEdgeCount(edgeFrom.edge) + getOrigEdgeCount(edgeTo.edge);
+            numOrigEdges += origEdgeCount;
         }
 
         @Override
@@ -559,7 +552,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                             // root parent weight was misused to store initial turn cost here
                             double initialTurnCost = root.getParent().weight;
                             entry.weight -= initialTurnCost;
-                            handleShortcuts(entry, root);
+                            handleShortcuts(entry, root, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
                             addedShortcuts.add(addedShortcut);
                         }
                     }

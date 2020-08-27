@@ -95,23 +95,6 @@ public class PrepareGraph {
         return arcs - 1;
     }
 
-    public void addOrUpdateShortcut(int from, int to, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        boolean exists = false;
-        for (Arc arc : outArcs.get(from)) {
-            if (arc.adjNode == to && arc.isShortcut()) {
-                exists = true;
-                if (weight < arc.weight) {
-                    arc.weight = weight;
-                    arc.skipped1 = skipped1;
-                    arc.skipped2 = skipped2;
-                    arc.origEdgeCount = origEdgeCount;
-                }
-            }
-        }
-        if (!exists)
-            addShortcut(from, to, -1, -1, skipped1, skipped2, weight, origEdgeCount);
-    }
-
     public PrepareGraphExplorer createOutEdgeExplorer() {
         return new PrepareGraphExplorerImpl(outArcs, false);
     }
@@ -158,8 +141,6 @@ public class PrepareGraph {
 
         int getSkipped2();
 
-        int getEdge();
-
         double getWeight();
 
         int getOrigEdgeCount();
@@ -167,6 +148,8 @@ public class PrepareGraph {
         void setSkippedEdges(int skipped1, int skipped2);
 
         void setWeight(double weight);
+
+        void setOrigEdgeCount(int origEdgeCount);
     }
 
     public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
@@ -234,12 +217,6 @@ public class PrepareGraph {
         }
 
         @Override
-        public int getEdge() {
-            assert !isShortcut();
-            return arcsAtNode.get(index).origEdgeFirst;
-        }
-
-        @Override
         public double getWeight() {
             return arcsAtNode.get(index).weight;
         }
@@ -258,6 +235,11 @@ public class PrepareGraph {
         @Override
         public void setWeight(double weight) {
             arcsAtNode.get(index).weight = weight;
+        }
+
+        @Override
+        public void setOrigEdgeCount(int origEdgeCount) {
+            arcsAtNode.get(index).origEdgeCount = origEdgeCount;
         }
 
         @Override
