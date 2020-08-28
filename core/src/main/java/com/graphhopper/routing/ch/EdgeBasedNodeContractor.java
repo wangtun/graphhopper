@@ -17,16 +17,15 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.*;
+import com.carrotsearch.hppc.IntHashSet;
+import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.LongHashSet;
+import com.carrotsearch.hppc.LongSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
-import com.graphhopper.routing.util.AllCHEdgesIterator;
-import com.graphhopper.util.BitUtil;
 import com.graphhopper.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
 import static com.graphhopper.routing.ch.CHParameters.*;
@@ -48,9 +47,9 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final ShortcutHandler addingShortcutHandler = new AddingShortcutHandler();
     private final ShortcutHandler countingShortcutHandler = new CountingShortcutHandler();
+    private final EdgeBasedShortcutInserter shortcutInserter;
     private final Params params = new Params();
     private final PMap pMap;
-    private final IntArrayList edgeMap = new IntArrayList();
     private ShortcutHandler activeShortcutHandler;
     private final StopWatch dijkstraSW = new StopWatch();
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
@@ -73,8 +72,9 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareCHGraph prepareGraph, PrepareGraph pg, PMap pMap) {
+    public EdgeBasedNodeContractor(PrepareCHGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, PrepareGraph pg, PMap pMap) {
         super(prepareGraph, pg);
+        this.shortcutInserter = shortcutInserter;
         this.pMap = pMap;
         extractParams(pMap);
     }
@@ -88,10 +88,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     @Override
     public void initFromGraph() {
         super.initFromGraph();
-        edgeMap.resize(prepareGraph.getOriginalEdges());
-        for (int i = 0; i < prepareGraph.getOriginalEdges(); i++) {
-            edgeMap.set(i, i);
-        }
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(pg, prepareGraph, pMap);
         sourceNodeOrigInEdgeExplorer = prepareGraph.createOriginalInEdgeExplorer();
         targetNodeOrigOutEdgeExplorer = prepareGraph.createOriginalOutEdgeExplorer();
@@ -106,15 +102,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     @Override
-    public void remapSkipEdges() {
-        AllCHEdgesIterator iter = prepareGraph.getAllEdges();
-        while (iter.next()) {
-            if (!iter.isShortcut())
-                continue;
-            int skip1 = edgeMap.get(iter.getSkippedEdge1());
-            int skip2 = edgeMap.get(iter.getSkippedEdge2());
-            iter.setSkippedEdges(skip1, skip2);
-        }
+    public void finishContraction() {
+        shortcutInserter.finishContraction();
     }
 
     @Override
@@ -145,15 +134,15 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         activeShortcutHandler = addingShortcutHandler;
         stats().stopWatch.start();
         findAndHandleShortcuts(node);
-        List<Shortcut> shortcuts = new ArrayList<>();
+        shortcutInserter.startContractingNode();
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcuts.add(new Shortcut(iter.getArc(), node, iter.getAdjNode(),
+                shortcutInserter.addShortcut(iter.getArc(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
-                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), false));
+                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), false);
             }
         }
         {
@@ -163,52 +152,16 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     continue;
                 if (iter.getAdjNode() == node)
                     continue;
-                shortcuts.add(new Shortcut(iter.getArc(), node, iter.getAdjNode(),
+                shortcutInserter.addShortcut(iter.getArc(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
-                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true));
+                        iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true);
             }
         }
-        for (Shortcut sc : shortcuts) {
-            int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
-            int scId = prepareGraph.shortcutEdgeBased(sc.from, sc.to, flags,
-                    sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
-            if (sc.arc >= edgeMap.size())
-                edgeMap.resize(sc.arc + 1);
-            edgeMap.set(sc.arc, scId);
-        }
+        shortcutInserter.finishContractingNode();
         IntSet neighbors = pg.disconnect(node);
         updateHierarchyDepthsOfNeighbors(node, neighbors);
         stats().stopWatch.stop();
         return neighbors;
-    }
-
-    private static class Shortcut {
-        private final int arc;
-        private final int from;
-        private final int to;
-        private final int origFirst;
-        private final int origLast;
-        private final int skip1;
-        private final int skip2;
-        private final double weight;
-        private final boolean reverse;
-
-        public Shortcut(int arc, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight, boolean reverse) {
-            this.arc = arc;
-            this.from = from;
-            this.to = to;
-            this.origFirst = origFirst;
-            this.origLast = origLast;
-            this.skip1 = skip1;
-            this.skip2 = skip2;
-            this.weight = weight;
-            this.reverse = reverse;
-        }
-
-        @Override
-        public String toString() {
-            return from + "-" + origFirst + "..." + origLast + "-" + to + " (" + skip1 + "," + skip2 + ")";
-        }
     }
 
     @Override

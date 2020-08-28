@@ -63,8 +63,9 @@ public class NodeBasedNodeContractorTest {
         return createNodeContractor(pg, prepareGraph);
     }
 
-    private NodeContractor createNodeContractor(PrepareCHGraph chGraph, PrepareGraph peegee) {
-        NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, peegee, new PMap());
+    private NodeContractor createNodeContractor(PrepareCHGraph chGraph, PrepareGraph prepareGraph) {
+        NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(lg);
+        NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, shortcutInserter, prepareGraph, new PMap());
         nodeContractor.initFromGraph();
         nodeContractor.prepareContraction();
         return nodeContractor;
@@ -345,7 +346,7 @@ public class NodeBasedNodeContractorTest {
             chGraph.setLevel(n, level);
             level++;
         }
-        nodeContractor.remapSkipEdges();
+        nodeContractor.finishContraction();
     }
 
     /**

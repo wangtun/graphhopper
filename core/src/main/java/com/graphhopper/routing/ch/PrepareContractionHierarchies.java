@@ -89,11 +89,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             }
             prepareGraph = PrepareCHGraph.edgeBased(chGraph, chConfig.getWeighting());
             PrepareGraph pg = PrepareGraph.edgeBased(ghStorage, chConfig.getWeighting());
-            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, pg, pMap);
+            EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
+            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, pg, pMap);
         } else {
             prepareGraph = PrepareCHGraph.nodeBased(chGraph, chConfig.getWeighting());
             PrepareGraph pg = PrepareGraph.nodeBased(ghStorage, chConfig.getWeighting());
-            nodeContractor = new NodeBasedNodeContractor(prepareGraph, pg, pMap);
+            NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(chGraph);
+            nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, pg, pMap);
         }
     }
 
@@ -274,7 +276,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             }
         }
 
-        nodeContractor.remapSkipEdges();
+        nodeContractor.finishContraction();
 
         logHeuristicStats(updateCounter);
 
@@ -310,7 +312,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
                 stopWatch.start();
             }
         }
-        nodeContractor.remapSkipEdges();
+        nodeContractor.finishContraction();
     }
 
     private void stopIfInterrupted() {

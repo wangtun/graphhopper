@@ -35,6 +35,8 @@ public interface NodeContractor {
      */
     IntSet contractNode(int node);
 
+    void finishContraction();
+
     long getAddedShortcutsCount();
 
     String getStatisticsString();
@@ -44,6 +46,4 @@ public interface NodeContractor {
     float getDijkstraSeconds();
 
     void prepareContraction();
-
-    void remapSkipEdges();
 }
