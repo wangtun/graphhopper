@@ -339,7 +339,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                 // update weight
                 iter.setSkippedEdges(edgeFrom.edge, edgeTo.edge);
                 iter.setWeight(edgeTo.weight);
-                iter.setOrigEdgeCount(origEdgeCount);
+                // todonow: this seems more correct, but check how it affects performance
+//                iter.setOrigEdgeCount(origEdgeCount);
                 CHEntry entry = new CHEntry(iter.getArc(), iter.getOrigEdgeLast(), adjNode, edgeTo.weight);
                 entry.parent = edgeFrom.parent;
                 return entry;
