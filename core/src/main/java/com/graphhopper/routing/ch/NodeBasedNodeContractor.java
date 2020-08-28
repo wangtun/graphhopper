@@ -28,7 +28,12 @@ import static com.graphhopper.routing.ch.CHParameters.EDGE_DIFFERENCE_WEIGHT;
 import static com.graphhopper.routing.ch.CHParameters.ORIGINAL_EDGE_COUNT_WEIGHT;
 import static com.graphhopper.util.Helper.nf;
 
-class NodeBasedNodeContractor extends AbstractNodeContractor {
+class NodeBasedNodeContractor implements NodeContractor {
+    private final PrepareGraph prepareGraph;
+    private final Weighting weighting;
+    private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
+    private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
     private final NodeBasedShortcutInserter shortcutInserter;
     private final Params params = new Params();
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
@@ -43,7 +48,8 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     private int shortcutsCount;
 
     NodeBasedNodeContractor(PrepareGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
-        super(prepareGraph, weighting);
+        this.prepareGraph = prepareGraph;
+        this.weighting = weighting;
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
     }
@@ -55,7 +61,10 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
 
     @Override
     public void initFromGraph() {
-        super.initFromGraph();
+        prepareGraph.initFromGraph();
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         witnessPathSearcher = new NodeBasedWitnessPathSearcher(prepareGraph);
     }
 
@@ -71,7 +80,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
 
     @Override
     public void close() {
-        super.close();
         witnessPathSearcher.close();
     }
 

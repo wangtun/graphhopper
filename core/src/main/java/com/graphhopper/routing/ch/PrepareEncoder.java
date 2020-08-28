@@ -49,5 +49,4 @@ public class PrepareEncoder {
     public static int getScBwdDir() {
         return scBwdDir;
     }
-
 }

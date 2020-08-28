@@ -44,8 +44,13 @@ import static com.graphhopper.util.Helper.nf;
  *
  * @author easbar
  */
-class EdgeBasedNodeContractor extends AbstractNodeContractor {
+class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
+    private final PrepareGraph prepareGraph;
+    private final Weighting weighting;
+    private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
+    private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
     private final ShortcutHandler addingShortcutHandler = new AddingShortcutHandler();
     private final ShortcutHandler countingShortcutHandler = new CountingShortcutHandler();
     private final EdgeBasedShortcutInserter shortcutInserter;
@@ -74,7 +79,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     private int numPolledEdges;
 
     public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
-        super(prepareGraph, weighting);
+        this.prepareGraph = prepareGraph;
+        this.weighting = weighting;
         this.shortcutInserter = shortcutInserter;
         this.pMap = pMap;
         extractParams(pMap);
@@ -88,7 +94,10 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
 
     @Override
     public void initFromGraph() {
-        super.initFromGraph();
+        prepareGraph.initFromGraph();
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, weighting, pMap);
         sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
         targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
