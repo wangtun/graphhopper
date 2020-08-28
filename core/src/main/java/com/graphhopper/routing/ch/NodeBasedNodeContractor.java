@@ -18,6 +18,7 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntSet;
+import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.StopWatch;
 
@@ -30,7 +31,6 @@ import static com.graphhopper.util.Helper.nf;
 class NodeBasedNodeContractor extends AbstractNodeContractor {
     private final NodeBasedShortcutInserter shortcutInserter;
     private final Params params = new Params();
-    private PrepareCHEdgeExplorer allEdgeExplorer;
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
     private int addedShortcutsCount;
     private long dijkstraCount;
@@ -42,8 +42,8 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     private int originalEdgesCount;
     private int shortcutsCount;
 
-    NodeBasedNodeContractor(PrepareCHGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, PrepareGraph pg, PMap pMap) {
-        super(prepareGraph, pg);
+    NodeBasedNodeContractor(PrepareGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
+        super(prepareGraph, weighting);
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
     }
@@ -56,8 +56,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     @Override
     public void initFromGraph() {
         super.initFromGraph();
-        allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
-        witnessPathSearcher = new NodeBasedWitnessPathSearcher(pg);
+        witnessPathSearcher = new NodeBasedWitnessPathSearcher(prepareGraph);
     }
 
     @Override
@@ -67,7 +66,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // no witness path can be found. this is not really what we want, but changing it requires re-optimizing the
         // graph contraction parameters, because it affects the node contraction order.
         // when this is done there should be no need for this method any longer.
-        meanDegree = prepareGraph.getEdges() / prepareGraph.getNodes();
+        meanDegree = prepareGraph.getOriginalEdges() / prepareGraph.getNodes();
     }
 
     @Override
@@ -99,7 +98,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // |shortcuts(v)| − |{(u, v) | v uncontracted}| − |{(v, w) | v uncontracted}|
         // meanDegree is used instead of outDegree+inDegree as if one adjNode is in both directions
         // only one bucket memory is used. Additionally one shortcut could also stand for two directions.
-        int edgeDifference = shortcutsCount - pg.getDegree(node);
+        int edgeDifference = shortcutsCount - prepareGraph.getDegree(node);
 
         // according to the paper do a simple linear combination of the properties to get the priority.
         return params.edgeDifferenceWeight * edgeDifference +
@@ -137,7 +136,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         long degree = handleShortcuts(node, this::addOrUpdateShortcut);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
-        return pg.disconnect(node);
+        return prepareGraph.disconnect(node);
     }
 
     @Override
@@ -233,7 +232,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
             }
         }
         if (!exists)
-            pg.addShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, weight, inOrigEdgeCount + outOrigEdgeCount);
+            prepareGraph.addShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, weight, inOrigEdgeCount + outOrigEdgeCount);
     }
 
     @Override

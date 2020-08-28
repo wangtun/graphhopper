@@ -21,6 +21,7 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.graphhopper.apache.commons.collections.IntDoubleBinaryHeap;
+import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.PMap;
@@ -65,7 +66,7 @@ public class EdgeBasedWitnessPathSearcher {
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
     // graph variables
-    private final PrepareCHGraph chGraph;
+    private final Weighting weighting;
     private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final PrepareGraph.BaseGraphExplorer origInEdgeExplorer;
 
@@ -103,15 +104,15 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, PrepareCHGraph chGraph, PMap pMap) {
-        this.chGraph = chGraph;
+    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, Weighting weighting, PMap pMap) {
+        this.weighting = weighting;
         extractParams(pMap);
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         origInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
-        initStorage(2 * chGraph.getOriginalEdges());
+        initStorage(2 * prepareGraph.getOriginalEdges());
         initCollections();
     }
 
@@ -459,7 +460,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return chGraph.getTurnWeight(inEdge, viaNode, outEdge);
+        return weighting.calcTurnWeight(inEdge, viaNode, outEdge);
     }
 
     static class Params {

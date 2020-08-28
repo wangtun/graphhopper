@@ -84,6 +84,10 @@ public class PrepareGraph {
         return nodes;
     }
 
+    public int getOriginalEdges() {
+        return graph.getEdges();
+    }
+
     public int getDegree(int node) {
         return outArcs.get(node).size() + inArcs.get(node).size();
     }

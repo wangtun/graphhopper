@@ -56,16 +56,15 @@ public class NodeBasedNodeContractorTest {
     private final Weighting weighting = new ShortestWeighting(encoder);
     private final GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("profile", weighting)).create();
     private final CHGraph lg = graph.getCHGraph();
-    private final PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
     private final PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
 
     private NodeContractor createNodeContractor() {
-        return createNodeContractor(pg, prepareGraph);
+        return createNodeContractor(lg, prepareGraph);
     }
 
-    private NodeContractor createNodeContractor(PrepareCHGraph chGraph, PrepareGraph prepareGraph) {
-        NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(lg);
-        NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, shortcutInserter, prepareGraph, new PMap());
+    private NodeContractor createNodeContractor(CHGraph chGraph, PrepareGraph prepareGraph) {
+        NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(chGraph);
+        NodeContractor nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, weighting, new PMap());
         nodeContractor.initFromGraph();
         nodeContractor.prepareContraction();
         return nodeContractor;
@@ -117,16 +116,16 @@ public class NodeBasedNodeContractorTest {
         graph.edge(6, 7, 1, true);
         graph.freeze();
 
-        int sc1to4 = pg.shortcut(1, 4, PrepareEncoder.getScDirMask(), 2, iter1to3.getEdge(), iter3to4.getEdge());
-        int sc4to6 = pg.shortcut(4, 6, PrepareEncoder.getScFwdDir(), 2, iter4to5.getEdge(), iter5to6.getEdge());
-        int sc6to4 = pg.shortcut(6, 4, PrepareEncoder.getScFwdDir(), 3, iter6to8.getEdge(), iter8to4.getEdge());
+        int sc1to4 = lg.shortcut(1, 4, PrepareEncoder.getScDirMask(), 2, iter1to3.getEdge(), iter3to4.getEdge());
+        int sc4to6 = lg.shortcut(4, 6, PrepareEncoder.getScFwdDir(), 2, iter4to5.getEdge(), iter5to6.getEdge());
+        int sc6to4 = lg.shortcut(6, 4, PrepareEncoder.getScFwdDir(), 3, iter6to8.getEdge(), iter8to4.getEdge());
 
         setMaxLevelOnAllNodes();
 
-        pg.setLevel(3, 3);
-        pg.setLevel(5, 5);
-        pg.setLevel(7, 7);
-        pg.setLevel(8, 8);
+        lg.setLevel(3, 3);
+        lg.setLevel(5, 5);
+        lg.setLevel(7, 7);
+        lg.setLevel(8, 8);
 
         Shortcut manualSc1 = expectedShortcut(1, 4, iter1to3, iter3to4, true, true);
         Shortcut manualSc2 = expectedShortcut(4, 6, iter4to5, iter5to6, true, false);
@@ -276,7 +275,6 @@ public class NodeBasedNodeContractorTest {
         Weighting weighting = new FastestWeighting(encoder);
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
-        PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
         PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 ------------> 4
         //  \             /
@@ -289,10 +287,10 @@ public class NodeBasedNodeContractorTest {
         graph.edge(2, 3, distances[3], false);
         graph.edge(3, 4, distances[4], false);
         graph.freeze();
-        setMaxLevelOnAllNodes(pg);
+        setMaxLevelOnAllNodes(lg);
 
         // perform CH contraction
-        contractInOrder(pg, prepareGraph, 1, 3, 2, 0, 4);
+        contractInOrder(lg, prepareGraph, 1, 3, 2, 0, 4);
 
         // first we compare dijkstra with CH to make sure they produce the same results
         int from = 0;
@@ -316,7 +314,6 @@ public class NodeBasedNodeContractorTest {
         Weighting weighting = new FastestWeighting(encoder);
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
-        PrepareCHGraph pg = PrepareCHGraph.nodeBased(lg, weighting);
         PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 - 1 - 2 - 3
         // o           o
@@ -327,19 +324,19 @@ public class NodeBasedNodeContractorTest {
         graph.edge(3, 3, 1, true);
 
         graph.freeze();
-        setMaxLevelOnAllNodes(pg);
-        NodeContractor nodeContractor = createNodeContractor(pg, prepareGraph);
+        setMaxLevelOnAllNodes(lg);
+        NodeContractor nodeContractor = createNodeContractor(lg, prepareGraph);
         nodeContractor.contractNode(0);
         nodeContractor.contractNode(3);
-        checkNoShortcuts(pg);
+        checkNoShortcuts(lg);
     }
 
     private void contractInOrder(int... nodeIds) {
-        contractInOrder(pg, prepareGraph, nodeIds);
+        contractInOrder(lg, prepareGraph, nodeIds);
     }
 
-    private void contractInOrder(PrepareCHGraph chGraph, PrepareGraph pg, int... nodeIds) {
-        NodeContractor nodeContractor = createNodeContractor(chGraph, pg);
+    private void contractInOrder(CHGraph chGraph, PrepareGraph prepareGraph, int... nodeIds) {
+        NodeContractor nodeContractor = createNodeContractor(chGraph, prepareGraph);
         int level = 0;
         for (int n : nodeIds) {
             nodeContractor.contractNode(n);
@@ -353,10 +350,10 @@ public class NodeBasedNodeContractorTest {
      * Queries the ch graph and checks if the graph's shortcuts match the given expected shortcuts.
      */
     private void checkShortcuts(Shortcut... expectedShortcuts) {
-        checkShortcuts(pg, expectedShortcuts);
+        checkShortcuts(lg, expectedShortcuts);
     }
 
-    private void checkShortcuts(PrepareCHGraph chGraph, Shortcut... expectedShortcuts) {
+    private void checkShortcuts(CHGraph chGraph, Shortcut... expectedShortcuts) {
         Set<Shortcut> expected = setOf(expectedShortcuts);
         if (expected.size() != expectedShortcuts.length) {
             fail("was given duplicate shortcuts");
@@ -375,10 +372,10 @@ public class NodeBasedNodeContractorTest {
     }
 
     private void checkNoShortcuts() {
-        checkShortcuts(pg);
+        checkShortcuts(lg);
     }
 
-    private void checkNoShortcuts(PrepareCHGraph chGraph) {
+    private void checkNoShortcuts(CHGraph chGraph) {
         checkShortcuts(chGraph);
     }
 
@@ -403,10 +400,10 @@ public class NodeBasedNodeContractorTest {
     }
 
     private void setMaxLevelOnAllNodes() {
-        setMaxLevelOnAllNodes(pg);
+        setMaxLevelOnAllNodes(lg);
     }
 
-    private void setMaxLevelOnAllNodes(PrepareCHGraph chGraph) {
+    private void setMaxLevelOnAllNodes(CHGraph chGraph) {
         int nodes = chGraph.getNodes();
         for (int node = 0; node < nodes; node++) {
             chGraph.setLevel(node, nodes);

@@ -22,6 +22,7 @@ import com.carrotsearch.hppc.IntSet;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
+import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +73,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareCHGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, PrepareGraph pg, PMap pMap) {
-        super(prepareGraph, pg);
+    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
+        super(prepareGraph, weighting);
         this.shortcutInserter = shortcutInserter;
         this.pMap = pMap;
         extractParams(pMap);
@@ -88,11 +89,11 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     @Override
     public void initFromGraph() {
         super.initFromGraph();
-        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(pg, prepareGraph, pMap);
-        sourceNodeOrigInEdgeExplorer = pg.createBaseInEdgeExplorer();
-        targetNodeOrigOutEdgeExplorer = pg.createBaseOutEdgeExplorer();
-        loopAvoidanceInEdgeExplorer = pg.createBaseInEdgeExplorer();
-        loopAvoidanceOutEdgeExplorer = pg.createBaseOutEdgeExplorer();
+        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, weighting, pMap);
+        sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
+        targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
+        loopAvoidanceInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
+        loopAvoidanceOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
         hierarchyDepths = new int[prepareGraph.getNodes()];
     }
 
@@ -158,7 +159,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             }
         }
         shortcutInserter.finishContractingNode();
-        IntSet neighbors = pg.disconnect(node);
+        IntSet neighbors = prepareGraph.disconnect(node);
         updateHierarchyDepthsOfNeighbors(node, neighbors);
         stats().stopWatch.stop();
         return neighbors;
@@ -298,7 +299,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         int origFirstKey = edgeFrom.getParent().incEdgeKey;
         LOGGER.trace("Adding shortcut from {} to {}, weight: {}, firstOrigEdgeKey: {}, lastOrigEdgeKey: {}",
                 from, adjNode, edgeTo.weight, origFirstKey, edgeTo.incEdgeKey);
-        int arc = pg.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.edge, edgeTo.edge, edgeTo.weight, origEdgeCount);
+        int arc = prepareGraph.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.edge, edgeTo.edge, edgeTo.weight, origEdgeCount);
         addedShortcutsCount++;
         int incEdgeKey = -1;
         PrepareCHEntry entry = new PrepareCHEntry(arc, incEdgeKey, edgeTo.adjNode, edgeTo.weight);
@@ -311,10 +312,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                 && (iter.getAdjNode() == adjNode)
                 && (iter.getOrigEdgeKeyFirst() == firstOrigEdgeKey)
                 && (iter.getOrigEdgeKeyLast() == lastOrigEdgeKey);
-    }
-
-    private double getTurnCost(int inEdge, int node, int outEdge) {
-        return prepareGraph.getTurnWeight(inEdge, node, outEdge);
     }
 
     private void resetEdgeCounters() {

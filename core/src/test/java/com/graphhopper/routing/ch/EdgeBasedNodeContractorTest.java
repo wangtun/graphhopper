@@ -26,11 +26,14 @@ import com.graphhopper.routing.ev.TurnCost;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
 import com.graphhopper.routing.util.CarFlagEncoder;
 import com.graphhopper.routing.util.EncodingManager;
+import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.CHConfig;
+import com.graphhopper.storage.CHGraph;
 import com.graphhopper.storage.GraphBuilder;
 import com.graphhopper.storage.GraphHopperStorage;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.GHUtility;
+import com.graphhopper.util.PMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +50,10 @@ import static org.junit.Assert.*;
  */
 public class EdgeBasedNodeContractorTest {
     private final int maxCost = 10;
-    private PrepareCHGraph chGraph;
+    private CHGraph chGraph;
     private CarFlagEncoder encoder;
     private GraphHopperStorage graph;
+    private Weighting weighting;
 
     @Rule
     public RepeatRule repeatRule = new RepeatRule();
@@ -71,7 +75,8 @@ public class EdgeBasedNodeContractorTest {
                 )
                 .create();
         chConfigs = graph.getCHConfigs();
-        chGraph = PrepareCHGraph.edgeBased(graph.getCHGraph(chConfigs.get(0).getName()), chConfigs.get(0).getWeighting());
+        chGraph = graph.getCHGraph(chConfigs.get(0).getName());
+        weighting = chGraph.getCHConfig().getWeighting();
     }
 
     @Test
@@ -1117,7 +1122,8 @@ public class EdgeBasedNodeContractorTest {
 
     @Test
     public void testFindPath_finiteUTurnCost() {
-        chGraph = PrepareCHGraph.edgeBased(graph.getCHGraph(chConfigs.get(1).getName()), chConfigs.get(1).getWeighting());
+        chGraph = graph.getCHGraph(chConfigs.get(1).getName());
+        weighting = chGraph.getCHConfig().getWeighting();
         // turning to 1 at node 3 when coming from 0 is forbidden, but taking the full loop 3-4-2-3 is very
         // expensive, so the best solution is to go straight to 4 and take a u-turn there
         //   1
@@ -1379,7 +1385,12 @@ public class EdgeBasedNodeContractorTest {
     }
 
     private EdgeBasedNodeContractor createNodeContractor() {
-        return null;
+        PrepareGraph prepareGraph = PrepareGraph.edgeBased(graph, weighting);
+        prepareGraph.initFromGraph();
+        EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
+        EdgeBasedNodeContractor nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, weighting, new PMap());
+        nodeContractor.initFromGraph();
+        return nodeContractor;
     }
 
     private void setRestriction(EdgeIteratorState inEdge, EdgeIteratorState outEdge, int viaNode) {

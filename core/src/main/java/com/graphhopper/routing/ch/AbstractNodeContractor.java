@@ -18,26 +18,26 @@
 
 package com.graphhopper.routing.ch;
 
+import com.graphhopper.routing.weighting.Weighting;
+
 abstract class AbstractNodeContractor implements NodeContractor {
-    final PrepareCHGraph prepareGraph;
-    final PrepareGraph pg;
+    final PrepareGraph prepareGraph;
+    final Weighting weighting;
     PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
-    int maxLevel;
 
-    public AbstractNodeContractor(PrepareCHGraph prepareGraph, PrepareGraph pg) {
+    public AbstractNodeContractor(PrepareGraph prepareGraph, Weighting weighting) {
         this.prepareGraph = prepareGraph;
-        this.pg = pg;
+        this.weighting = weighting;
     }
 
     @Override
     public void initFromGraph() {
-        pg.initFromGraph();
-        inEdgeExplorer = pg.createInEdgeExplorer();
-        outEdgeExplorer = pg.createOutEdgeExplorer();
-        existingShortcutExplorer = pg.createOutEdgeExplorer();
-        maxLevel = prepareGraph.getNodes();
+        prepareGraph.initFromGraph();
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
     }
 
     @Override

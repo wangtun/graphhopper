@@ -53,7 +53,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final CHConfig chConfig;
     private final CHGraph chGraph;
-    private final PrepareCHGraph prepareGraph;
     private final Random rand = new Random(123);
     private final StopWatch allSW = new StopWatch();
     private final StopWatch periodicUpdateSW = new StopWatch();
@@ -87,15 +86,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             if (turnCostStorage == null) {
                 throw new IllegalArgumentException("For edge-based CH you need a turn cost storage");
             }
-            prepareGraph = PrepareCHGraph.edgeBased(chGraph, chConfig.getWeighting());
             PrepareGraph pg = PrepareGraph.edgeBased(ghStorage, chConfig.getWeighting());
             EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
-            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, pg, pMap);
+            nodeContractor = new EdgeBasedNodeContractor(pg, shortcutInserter, chConfig.getWeighting(), pMap);
         } else {
-            prepareGraph = PrepareCHGraph.nodeBased(chGraph, chConfig.getWeighting());
             PrepareGraph pg = PrepareGraph.nodeBased(ghStorage, chConfig.getWeighting());
             NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(chGraph);
-            nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, pg, pMap);
+            nodeContractor = new NodeBasedNodeContractor(pg, shortcutInserter, chConfig.getWeighting(), pMap);
         }
     }
 
@@ -126,10 +123,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
 
     @Override
     public void doSpecificWork() {
-        if (!prepareGraph.isReadyForContraction()) {
+        if (!chGraph.isReadyForContraction()) {
             throw new IllegalStateException("Given CHGraph has not been frozen yet");
         }
-        if (prepareGraph.getEdges() > prepareGraph.getOriginalEdges()) {
+        if (chGraph.getEdges() > chGraph.getOriginalEdges()) {
             throw new IllegalStateException("Given CHGraph has been contracted already");
         }
         allSW.start();
@@ -140,9 +137,9 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     }
 
     private void logFinalGraphStats() {
-        int edgeCount = prepareGraph.getOriginalEdges();
+        int edgeCount = chGraph.getOriginalEdges();
         logger.info("took: {}s, graph now - num edges: {}, num nodes: {}, num shortcuts: {}",
-                (int) allSW.getSeconds(), nf(edgeCount), nf(nodes), nf(prepareGraph.getEdges() - edgeCount));
+                (int) allSW.getSeconds(), nf(edgeCount), nf(nodes), nf(chGraph.getEdges() - edgeCount));
     }
 
     private void runGraphContraction() {
@@ -174,7 +171,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
 
     private void setMaxLevelOnAllNodes() {
         for (int node = 0; node < nodes; node++) {
-            prepareGraph.setLevel(node, maxLevel);
+            chGraph.setLevel(node, maxLevel);
         }
     }
 
@@ -324,13 +321,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private IntSet contractNode(int node, int level) {
         contractionSW.start();
         IntSet neighbors = nodeContractor.contractNode(node);
-        prepareGraph.setLevel(node, level);
+        chGraph.setLevel(node, level);
         contractionSW.stop();
         return neighbors;
     }
 
     private boolean isContracted(int node) {
-        return prepareGraph.getLevel(node) != maxLevel;
+        return chGraph.getLevel(node) != maxLevel;
     }
 
     private void logHeuristicStats(int updateCounter) {
