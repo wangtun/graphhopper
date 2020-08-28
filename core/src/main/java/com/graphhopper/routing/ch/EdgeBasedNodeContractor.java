@@ -334,6 +334,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                 // update weight
                 iter.setSkippedEdges(edgeFrom.edge, edgeTo.edge);
                 iter.setWeight(edgeTo.weight);
+                iter.setOrigEdgeCount(origEdgeCount);
                 CHEntry entry = new CHEntry(iter.getArc(), iter.getOrigEdgeLast(), adjNode, edgeTo.weight);
                 entry.parent = edgeFrom.parent;
                 return entry;
