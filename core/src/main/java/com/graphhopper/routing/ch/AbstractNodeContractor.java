@@ -40,10 +40,6 @@ abstract class AbstractNodeContractor implements NodeContractor {
         maxLevel = prepareGraph.getNodes();
     }
 
-    boolean isContracted(int node) {
-        return prepareGraph.getLevel(node) != maxLevel;
-    }
-
     @Override
     public void close() {
     }

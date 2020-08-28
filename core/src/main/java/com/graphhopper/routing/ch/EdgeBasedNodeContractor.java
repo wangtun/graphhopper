@@ -55,10 +55,10 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
     private int[] hierarchyDepths;
     private EdgeBasedWitnessPathSearcher witnessPathSearcher;
-    private PrepareCHEdgeExplorer sourceNodeOrigInEdgeExplorer;
-    private PrepareCHEdgeExplorer targetNodeOrigOutEdgeExplorer;
-    private PrepareCHEdgeExplorer loopAvoidanceInEdgeExplorer;
-    private PrepareCHEdgeExplorer loopAvoidanceOutEdgeExplorer;
+    private PrepareGraph.BaseGraphExplorer sourceNodeOrigInEdgeExplorer;
+    private PrepareGraph.BaseGraphExplorer targetNodeOrigOutEdgeExplorer;
+    private PrepareGraph.BaseGraphExplorer loopAvoidanceInEdgeExplorer;
+    private PrepareGraph.BaseGraphExplorer loopAvoidanceOutEdgeExplorer;
 
     // counts the total number of added shortcuts
     private int addedShortcutsCount;
@@ -89,10 +89,10 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     public void initFromGraph() {
         super.initFromGraph();
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(pg, prepareGraph, pMap);
-        sourceNodeOrigInEdgeExplorer = prepareGraph.createOriginalInEdgeExplorer();
-        targetNodeOrigOutEdgeExplorer = prepareGraph.createOriginalOutEdgeExplorer();
-        loopAvoidanceInEdgeExplorer = prepareGraph.createOriginalInEdgeExplorer();
-        loopAvoidanceOutEdgeExplorer = prepareGraph.createOriginalOutEdgeExplorer();
+        sourceNodeOrigInEdgeExplorer = pg.createBaseInEdgeExplorer();
+        targetNodeOrigOutEdgeExplorer = pg.createBaseOutEdgeExplorer();
+        loopAvoidanceInEdgeExplorer = pg.createBaseInEdgeExplorer();
+        loopAvoidanceOutEdgeExplorer = pg.createBaseOutEdgeExplorer();
         hierarchyDepths = new int[prepareGraph.getNodes()];
     }
 
@@ -460,9 +460,9 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                     continue;
                 }
                 // for each source node we need to look at every incoming original edge and find the initial entries
-                PrepareCHEdgeIterator origInIter = sourceNodeOrigInEdgeExplorer.setBaseNode(sourceNode);
+                PrepareGraph.BaseGraphIterator origInIter = sourceNodeOrigInEdgeExplorer.setBaseNode(sourceNode);
                 while (origInIter.next()) {
-                    int numInitialEntries = witnessPathSearcher.initSearch(node, sourceNode, origInIter.getOrigEdgeLast());
+                    int numInitialEntries = witnessPathSearcher.initSearch(node, sourceNode, GHUtility.getEdgeFromEdgeKey(origInIter.getOrigEdgeKeyLast()));
                     if (numInitialEntries < 1) {
                         continue;
                     }
@@ -481,11 +481,10 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                         }
                         // for each target edge outgoing from a target node we need to check if reaching it requires
                         // a 'bridge-path'
-                        PrepareCHEdgeIterator targetEdgeIter = targetNodeOrigOutEdgeExplorer.setBaseNode(targetNode);
+                        PrepareGraph.BaseGraphIterator targetEdgeIter = targetNodeOrigOutEdgeExplorer.setBaseNode(targetNode);
                         while (targetEdgeIter.next()) {
-                            int targetEdge = targetEdgeIter.getOrigEdgeFirst();
                             dijkstraSW.start();
-                            PrepareCHEntry entry = witnessPathSearcher.runSearch(targetNode, targetEdge);
+                            PrepareCHEntry entry = witnessPathSearcher.runSearch(targetNode, GHUtility.getEdgeFromEdgeKey(targetEdgeIter.getOrigEdgeKeyFirst()));
                             dijkstraSW.stop();
                             if (entry == null || Double.isInfinite(entry.weight)) {
                                 continue;

@@ -67,7 +67,7 @@ public class EdgeBasedWitnessPathSearcher {
     // graph variables
     private final PrepareCHGraph chGraph;
     private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private final PrepareCHEdgeExplorer origInEdgeExplorer;
+    private final PrepareGraph.BaseGraphExplorer origInEdgeExplorer;
 
     // general parameters affecting the number of found witnesses and the search time
     private final Params params = new Params();
@@ -108,7 +108,7 @@ public class EdgeBasedWitnessPathSearcher {
         extractParams(pMap);
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        origInEdgeExplorer = chGraph.createOriginalInEdgeExplorer();
+        origInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
         initStorage(2 * chGraph.getOriginalEdges());
@@ -170,9 +170,9 @@ public class EdgeBasedWitnessPathSearcher {
         bestPathIsBridgePath = false;
 
         // check if we can already reach the target from the shortest path tree we discovered so far
-        PrepareCHEdgeIterator inIter = origInEdgeExplorer.setBaseNode(targetNode);
+        PrepareGraph.BaseGraphIterator inIter = origInEdgeExplorer.setBaseNode(targetNode);
         while (inIter.next()) {
-            final int edgeKey = GHUtility.createEdgeKey(inIter.getAdjNode(), targetNode, inIter.getOrigEdgeLast(), false);
+            final int edgeKey = GHUtility.reverseEdgeKey(inIter.getOrigEdgeKeyLast());
             if (EdgeIterator.Edge.isValid(edges[edgeKey])) {
                 boolean isZeroWeightLoop = parents[edgeKey] >= 0 && targetNode == adjNodes[parents[edgeKey]] &&
                         weights[edgeKey] - weights[parents[edgeKey]] <= MAX_ZERO_WEIGHT_LOOP;

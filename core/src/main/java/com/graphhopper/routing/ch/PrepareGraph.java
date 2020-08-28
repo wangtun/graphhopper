@@ -25,6 +25,7 @@ import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -36,7 +37,9 @@ public class PrepareGraph {
     private int nodes;
     private List<List<Arc>> outArcs;
     private List<List<Arc>> inArcs;
-    private int arcs;
+    private List<List<Edge>> outEdges;
+    private List<List<Edge>> inEdges;
+    private int edges;
 
     public static PrepareGraph nodeBased(Graph graph, Weighting weighting) {
         return new PrepareGraph(graph, weighting);
@@ -55,6 +58,8 @@ public class PrepareGraph {
         nodes = graph.getNodes();
         outArcs = IntStream.range(0, graph.getNodes()).<List<Arc>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inArcs = IntStream.range(0, graph.getNodes()).<List<Arc>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         AllEdgesIterator iter = graph.getAllEdges();
         while (iter.next()) {
             if (iter.get(weighting.getFlagEncoder().getAccessEnc())) {
@@ -70,7 +75,9 @@ public class PrepareGraph {
                 }
             }
         }
-        arcs = graph.getEdges();
+        outEdges.forEach(Collections::reverse);
+        inEdges.forEach(Collections::reverse);
+        edges = graph.getEdges();
     }
 
     public int getNodes() {
@@ -85,14 +92,18 @@ public class PrepareGraph {
         Arc arc = Arc.edge(edge, from, to, edge, weight);
         outArcs.get(from).add(arc);
         inArcs.get(to).add(arc);
+
+        Edge e = new Edge(edge, from, to);
+        outEdges.get(from).add(e);
+        inEdges.get(to).add(e);
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        Arc arc = Arc.shortcut(arcs, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
+        Arc arc = Arc.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
         outArcs.get(from).add(arc);
         inArcs.get(to).add(arc);
-        arcs++;
-        return arcs - 1;
+        edges++;
+        return edges - 1;
     }
 
     public PrepareGraphExplorer createOutEdgeExplorer() {
@@ -101,6 +112,14 @@ public class PrepareGraph {
 
     public PrepareGraphExplorer createInEdgeExplorer() {
         return new PrepareGraphExplorerImpl(inArcs, true);
+    }
+
+    public BaseGraphExplorer createBaseOutEdgeExplorer() {
+        return new BaseGraphExplorerImpl(outEdges, false);
+    }
+
+    public BaseGraphExplorer createBaseInEdgeExplorer() {
+        return new BaseGraphExplorerImpl(inEdges, true);
     }
 
     public IntSet disconnect(int node) {
@@ -246,6 +265,91 @@ public class PrepareGraph {
         @Override
         public String toString() {
             return getBaseNode() + "-" + getAdjNode();
+        }
+    }
+
+
+    public interface BaseGraphExplorer {
+        BaseGraphIterator setBaseNode(int node);
+    }
+
+    public interface BaseGraphIterator {
+        boolean next();
+
+        int getBaseNode();
+
+        int getAdjNode();
+
+        int getEdge();
+
+        int getOrigEdgeKeyFirst();
+
+        int getOrigEdgeKeyLast();
+    }
+
+    public static class BaseGraphExplorerImpl implements BaseGraphExplorer, BaseGraphIterator {
+        private final List<List<Edge>> edges;
+        private final boolean reverse;
+        private List<Edge> edgesAtNode;
+        private int index;
+
+        BaseGraphExplorerImpl(List<List<Edge>> edges, boolean reverse) {
+            this.edges = edges;
+            this.reverse = reverse;
+        }
+
+        @Override
+        public BaseGraphIterator setBaseNode(int node) {
+            this.edgesAtNode = edges.get(node);
+            this.index = -1;
+            return this;
+        }
+
+        @Override
+        public boolean next() {
+            index++;
+            return index < edgesAtNode.size();
+        }
+
+        @Override
+        public int getBaseNode() {
+            return reverse ? edgesAtNode.get(index).adjNode : edgesAtNode.get(index).baseNode;
+        }
+
+        @Override
+        public int getAdjNode() {
+            return reverse ? edgesAtNode.get(index).baseNode : edgesAtNode.get(index).adjNode;
+        }
+
+        @Override
+        public int getEdge() {
+            return edgesAtNode.get(index).edge;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            int e = getEdge() << 1;
+            if (getBaseNode() > getAdjNode())
+                e += 1;
+            return e;
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            return getOrigEdgeKeyFirst();
+        }
+    }
+
+
+    public static class Edge {
+        private final int edge;
+        private final int baseNode;
+        private final int adjNode;
+
+        public Edge(int edge, int baseNode, int adjNode) {
+            this.edge = edge;
+            this.baseNode = baseNode;
+            this.adjNode = adjNode;
         }
     }
 
