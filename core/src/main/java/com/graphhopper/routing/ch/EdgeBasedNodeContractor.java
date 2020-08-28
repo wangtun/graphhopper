@@ -17,18 +17,16 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntArrayList;
-import com.carrotsearch.hppc.IntHashSet;
-import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.*;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
-import com.graphhopper.util.EdgeIterator;
-import com.graphhopper.util.GHUtility;
-import com.graphhopper.util.PMap;
-import com.graphhopper.util.StopWatch;
+import com.graphhopper.util.BitUtil;
+import com.graphhopper.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import static com.graphhopper.routing.ch.CHParameters.*;
 import static com.graphhopper.util.Helper.nf;
@@ -498,7 +496,7 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
             LOGGER.trace("Finding shortcuts (aggressive) for node {}, required shortcuts will be {}ed", node, activeShortcutHandler.getAction());
             stats().nodes++;
             resetEdgeCounters();
-            Set<AddedShortcut> addedShortcuts = new HashSet<>();
+            LongSet addedShortcuts = new LongHashSet();
 
             // first we need to identify the possible source nodes from which we can reach the center node
             sourceNodes.clear();
@@ -551,50 +549,18 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                             // shortcuts (makes slower queries). note that 'duplicate' shortcuts get detected at time
                             // of insertion when running with adding shortcut handler, but not when we are only counting.
                             // only running this check while counting does not seem to improve contraction time a lot.
-                            AddedShortcut addedShortcut = new AddedShortcut(sourceNode, root.getParent().incEdgeKey, targetNode, entry.incEdgeKey);
-                            if (addedShortcuts.contains(addedShortcut)) {
+                            long addedShortcutKey = BitUtil.LITTLE.combineIntsToLong(root.getParent().incEdgeKey, entry.incEdgeKey);
+                            if (!addedShortcuts.add(addedShortcutKey))
                                 continue;
-                            }
                             // root parent weight was misused to store initial turn cost here
                             double initialTurnCost = root.getParent().weight;
                             entry.weight -= initialTurnCost;
                             handleShortcuts(entry, root, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
-                            addedShortcuts.add(addedShortcut);
                         }
                     }
                     numPolledEdges += witnessPathSearcher.getNumPolledEdges();
                 }
             }
-        }
-    }
-
-    private static class AddedShortcut {
-        int startNode;
-        int startEdge;
-        int endNode;
-        int targetEdge;
-
-        public AddedShortcut(int startNode, int startEdge, int endNode, int targetEdge) {
-            this.startNode = startNode;
-            this.startEdge = startEdge;
-            this.endNode = endNode;
-            this.targetEdge = targetEdge;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            AddedShortcut that = (AddedShortcut) o;
-            return startNode == that.startNode &&
-                    startEdge == that.startEdge &&
-                    endNode == that.endNode &&
-                    targetEdge == that.targetEdge;
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * startNode + endNode;
         }
     }
 
