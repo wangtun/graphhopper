@@ -68,6 +68,15 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         }
         allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
         prepareAlgo = new NodeBasedWitnessPathSearcher(pg);
+    }
+
+    @Override
+    public void prepareContraction() {
+        // todo: initializing meanDegree here instead of in initFromGraph() means that in the first round of calculating
+        // node priorities all shortcut searches are cancelled immediately and all possible shortcuts are counted because
+        // no witness path can be found. this is not really what we want, but changing it requires re-optimizing the
+        // graph contraction parameters, because it affects the node contraction order.
+        // when this is done there should be no need for this method any longer.
         meanDegree = prepareGraph.getEdges() / prepareGraph.getNodes();
     }
 
@@ -336,7 +345,9 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     private int getMaxVisitedNodesEstimate() {
-        return (int) (meanDegree * 100);
+        // todo: we return 0 here if meanDegree is < 1, which is not really what we want, but changing this changes
+        // the node contraction order and requires re-optimizing the parameters of the graph contraction
+        return (int) meanDegree * 100;
     }
 
     @FunctionalInterface

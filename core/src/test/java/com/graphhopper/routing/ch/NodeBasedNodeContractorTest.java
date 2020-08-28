@@ -66,6 +66,7 @@ public class NodeBasedNodeContractorTest {
     private NodeContractor createNodeContractor(PrepareCHGraph chGraph, PrepareGraph peegee) {
         NodeContractor nodeContractor = new NodeBasedNodeContractor(chGraph, peegee, new PMap());
         nodeContractor.initFromGraph();
+        nodeContractor.prepareContraction();
         return nodeContractor;
     }
 
