@@ -68,7 +68,6 @@ public class EdgeBasedWitnessPathSearcher {
     private final PrepareCHGraph chGraph;
     private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final PrepareCHEdgeExplorer origInEdgeExplorer;
-    private final int maxLevel;
 
     // general parameters affecting the number of found witnesses and the search time
     private final Params params = new Params();
@@ -111,7 +110,6 @@ public class EdgeBasedWitnessPathSearcher {
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         origInEdgeExplorer = chGraph.createOriginalInEdgeExplorer();
-        maxLevel = prepareGraph.getNodes();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
         int numOriginalEdges = chGraph.getOriginalEdges();
@@ -221,9 +219,6 @@ public class EdgeBasedWitnessPathSearcher {
             final int fromNode = adjNodes[currKey];
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(fromNode);
             while (iter.next()) {
-                if (isContracted(iter.getAdjNode())) {
-                    continue;
-                }
                 double edgeWeight = iter.getWeight() + calcTurnWeight(incEdges[currKey], iter.getBaseNode(), iter.getOrigEdgeFirst());
                 double weight = edgeWeight + weights[currKey];
                 if (isInfinite(weight)) {
@@ -323,9 +318,6 @@ public class EdgeBasedWitnessPathSearcher {
     private void setInitialEntries(int sourceNode, int sourceEdge, int centerNode) {
         PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(sourceNode);
         while (outIter.next()) {
-            if (isContracted(outIter.getAdjNode())) {
-                continue;
-            }
             double turnWeight = calcTurnWeight(sourceEdge, sourceNode, outIter.getOrigEdgeFirst());
             if (isInfinite(turnWeight)) {
                 continue;
@@ -471,10 +463,6 @@ public class EdgeBasedWitnessPathSearcher {
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
         return chGraph.getTurnWeight(inEdge, viaNode, outEdge);
-    }
-
-    private boolean isContracted(int node) {
-        return chGraph.getLevel(node) != maxLevel;
     }
 
     static class Params {
