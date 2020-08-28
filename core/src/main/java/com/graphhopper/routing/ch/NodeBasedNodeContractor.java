@@ -20,7 +20,6 @@ package com.graphhopper.routing.ch;
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntSet;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
-import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.StopWatch;
 
@@ -29,7 +28,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
-import static com.graphhopper.routing.ch.CHParameters.*;
+import static com.graphhopper.routing.ch.CHParameters.EDGE_DIFFERENCE_WEIGHT;
+import static com.graphhopper.routing.ch.CHParameters.ORIGINAL_EDGE_COUNT_WEIGHT;
 import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor extends AbstractNodeContractor {
@@ -56,7 +56,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     private void extractParams(PMap pMap) {
         params.edgeDifferenceWeight = pMap.getFloat(EDGE_DIFFERENCE_WEIGHT, params.edgeDifferenceWeight);
         params.originalEdgesCountWeight = pMap.getFloat(ORIGINAL_EDGE_COUNT_WEIGHT, params.originalEdgesCountWeight);
-        params.contractedNeighborsWeight = pMap.getFloat(CONTRACTED_NEIGHBORS_WEIGHT, params.contractedNeighborsWeight);
     }
 
     @Override
@@ -106,18 +105,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         originalEdgesCount = 0;
         handleShortcuts(node, this::countShortcut);
 
-        // # lowest influence on preparation speed or shortcut creation count
-        // (but according to paper should speed up queries)
-        //
-        // number of already contracted neighbors of v
-        int contractedNeighbors = 0;
-        PrepareCHEdgeIterator iter = allEdgeExplorer.setBaseNode(node);
-        while (iter.next()) {
-            if (!iter.isShortcut() && isContracted(iter.getAdjNode())) {
-                contractedNeighbors++;
-            }
-        }
-
         // from shortcuts we can compute the edgeDifference
         // # low influence: with it the shortcut creation is slightly faster
         //
@@ -129,6 +116,8 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // according to the paper do a simple linear combination of the properties to get the priority.
         return params.edgeDifferenceWeight * edgeDifference +
                 params.originalEdgesCountWeight * originalEdgesCount;
+        // todo: maybe use contracted-neighbors heuristic (contract nodes with lots of contracted neighbors later) as in GH 1.0 again?
+        //       maybe use hierarchy-depths heuristic as in edge-based?
     }
 
     public void remapSkipEdges() {
@@ -230,10 +219,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
                 // If we decrease the correct weight we only explore less and introduce more shortcuts.
                 // I.e. no change to accuracy is made.
                 double existingDirectWeight = incomingEdgeWeight + outgoingEdges.getWeight();
-                if (Double.isNaN(existingDirectWeight))
-                    throw new IllegalStateException("Weighting should never return NaN values"
-                            + ", in:" + getCoords(incomingEdges, prepareGraph.getNodeAccess()) + ", out:" + getCoords(outgoingEdges, prepareGraph.getNodeAccess()));
-
                 if (Double.isInfinite(existingDirectWeight))
                     continue;
 
@@ -302,31 +287,19 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         boolean exists = false;
         PrepareGraph.PrepareGraphIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
         while (iter.next()) {
-            if (iter.getAdjNode() == toNode && iter.isShortcut()) {
-                exists = true;
-                if (weight < iter.getWeight()) {
-                    iter.setWeight(weight);
-                    iter.setSkippedEdges(incomingEdge, outgoingEdge);
-                    iter.setOrigEdgeCount(inOrigEdgeCount + outOrigEdgeCount);
-                }
+            // do not update base edges!
+            if (iter.getAdjNode() != toNode || !iter.isShortcut()) {
+                continue;
+            }
+            exists = true;
+            if (weight < iter.getWeight()) {
+                iter.setWeight(weight);
+                iter.setSkippedEdges(incomingEdge, outgoingEdge);
+                iter.setOrigEdgeCount(inOrigEdgeCount + outOrigEdgeCount);
             }
         }
         if (!exists)
             pg.addShortcut(fromNode, toNode, -1, -1, incomingEdge, outgoingEdge, weight, inOrigEdgeCount + outOrigEdgeCount);
-    }
-
-    private String getCoords(PrepareCHEdgeIterator edge, NodeAccess na) {
-        int base = edge.getBaseNode();
-        int adj = edge.getAdjNode();
-        return base + "->" + adj + " (" + edge.getEdge() + "); "
-                + na.getLat(base) + "," + na.getLon(base) + " -> " + na.getLat(adj) + "," + na.getLon(adj);
-    }
-
-    private String getCoords(PrepareGraph.PrepareGraphIterator edge, NodeAccess na) {
-        int base = edge.getBaseNode();
-        int adj = edge.getAdjNode();
-        return base + "->" + adj + " (" + edge.getArc() + "); "
-                + na.getLat(base) + "," + na.getLon(base) + " -> " + na.getLat(adj) + "," + na.getLon(adj);
     }
 
     @Override
@@ -415,7 +388,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
         // default values were optimized for Unterfranken
         private float edgeDifferenceWeight = 10;
         private float originalEdgesCountWeight = 1;
-        private float contractedNeighborsWeight = 1;
     }
 
 }

@@ -172,7 +172,7 @@ public class EdgeBasedWitnessPathSearcher {
         // check if we can already reach the target from the shortest path tree we discovered so far
         PrepareCHEdgeIterator inIter = origInEdgeExplorer.setBaseNode(targetNode);
         while (inIter.next()) {
-            int edgeKey = GHUtility.createEdgeKey(inIter.getAdjNode(), targetNode, inIter.getOrigEdgeLast(), false);
+            final int edgeKey = GHUtility.createEdgeKey(inIter.getAdjNode(), targetNode, inIter.getOrigEdgeLast(), false);
             if (EdgeIterator.Edge.isValid(edges[edgeKey])) {
                 boolean isZeroWeightLoop = parents[edgeKey] >= 0 && targetNode == adjNodes[parents[edgeKey]] &&
                         weights[edgeKey] - weights[parents[edgeKey]] <= MAX_ZERO_WEIGHT_LOOP;
@@ -285,6 +285,16 @@ public class EdgeBasedWitnessPathSearcher {
 
     public void resetStats() {
         currentBatchStats.reset();
+    }
+
+    public void close() {
+        weights = null;
+        edges = null;
+        parents = null;
+        adjNodes = null;
+        isPathToCenters = null;
+        dijkstraHeap = null;
+        initialEntryParents = null;
     }
 
     private void initStorage(int numEntries) {

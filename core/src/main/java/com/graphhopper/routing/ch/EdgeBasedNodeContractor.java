@@ -380,6 +380,11 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         numPrevOrigEdges = 0;
     }
 
+    @Override
+    public void close() {
+        witnessPathSearcher.close();
+    }
+
     private Stats stats() {
         return activeShortcutHandler.getStats();
     }
