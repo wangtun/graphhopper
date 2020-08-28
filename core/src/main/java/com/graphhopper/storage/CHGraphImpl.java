@@ -864,11 +864,6 @@ public class CHGraphImpl implements CHGraph, Storable<CHGraph> {
         }
 
         @Override
-        public int getMergeStatus(int flags) {
-            return PrepareEncoder.getScMergeStatus(getShortcutFlags(), flags);
-        }
-
-        @Override
         public EdgeIteratorState detach(boolean reverseArg) {
             return edgeIterable.detach(reverseArg);
         }

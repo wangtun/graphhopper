@@ -15,7 +15,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
 package com.graphhopper.routing.ch;
 
 import com.graphhopper.routing.SPTEntry;
@@ -32,8 +31,8 @@ public class PrepareCHEntry extends SPTEntry {
         this.incEdgeKey = incEdgeKey;
     }
 
-    public com.graphhopper.routing.ch.PrepareCHEntry getParent() {
-        return (com.graphhopper.routing.ch.PrepareCHEntry) super.parent;
+    public PrepareCHEntry getParent() {
+        return (PrepareCHEntry) super.parent;
     }
 
     @Override

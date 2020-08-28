@@ -404,6 +404,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     }
 
     private float calculatePriority(int node) {
+        if (isContracted(node))
+            throw new IllegalArgumentException("Priority should only be calculated for not yet contracted nodes");
         return nodeContractor.calculatePriority(node);
     }
 

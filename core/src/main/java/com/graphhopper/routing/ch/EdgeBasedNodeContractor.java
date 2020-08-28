@@ -18,6 +18,7 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.*;
+import com.carrotsearch.hppc.cursors.IntCursor;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
 import com.graphhopper.util.BitUtil;
 import com.graphhopper.util.*;
@@ -175,8 +176,8 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
                 edgeMap.resize(sc.arc + 1);
             edgeMap.set(sc.arc, scId);
         }
-        updateHierarchyDepthsOfNeighbors(node);
         IntSet neighbors = pg.disconnect(node);
+        updateHierarchyDepthsOfNeighbors(node, neighbors);
         stats().stopWatch.stop();
         return neighbors;
     }
@@ -269,22 +270,12 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
         }
     }
 
-    private void updateHierarchyDepthsOfNeighbors(int node) {
-        {
-            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
-            while (iter.next()) {
-                if (iter.getAdjNode() == node)
-                    continue;
-                hierarchyDepths[iter.getAdjNode()] = Math.max(hierarchyDepths[iter.getAdjNode()], hierarchyDepths[node] + 1);
-            }
-        }
-        {
-            PrepareGraph.PrepareGraphIterator iter = inEdgeExplorer.setBaseNode(node);
-            while (iter.next()) {
-                if (iter.getAdjNode() == node)
-                    continue;
-                hierarchyDepths[iter.getAdjNode()] = Math.max(hierarchyDepths[iter.getAdjNode()], hierarchyDepths[node] + 1);
-            }
+    private void updateHierarchyDepthsOfNeighbors(int node, IntSet neighbors) {
+        int level = hierarchyDepths[node];
+        for (IntCursor n : neighbors) {
+            if (n.value == node)
+                continue;
+            hierarchyDepths[n.value] = Math.max(hierarchyDepths[n.value], level + 1);
         }
     }
 

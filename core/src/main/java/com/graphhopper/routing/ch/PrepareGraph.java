@@ -106,12 +106,12 @@ public class PrepareGraph {
     public IntSet disconnect(int node) {
         IntSet neighbors = new IntHashSet(getDegree(node));
         for (Arc arc : outArcs.get(node)) {
-            inArcs.get(arc.adjNode).removeIf(a -> a == arc);
-            neighbors.add(arc.adjNode);
+            inArcs.get(arc.to).removeIf(a -> a == arc);
+            neighbors.add(arc.to);
         }
         for (Arc arc : inArcs.get(node)) {
-            outArcs.get(arc.baseNode).removeIf(a -> a == arc);
-            neighbors.add(arc.baseNode);
+            outArcs.get(arc.from).removeIf(a -> a == arc);
+            neighbors.add(arc.from);
         }
         outArcs.get(node).clear();
         inArcs.get(node).clear();
@@ -178,12 +178,12 @@ public class PrepareGraph {
 
         @Override
         public int getBaseNode() {
-            return reverse ? arcsAtNode.get(index).adjNode : arcsAtNode.get(index).baseNode;
+            return reverse ? arcsAtNode.get(index).to : arcsAtNode.get(index).from;
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? arcsAtNode.get(index).baseNode : arcsAtNode.get(index).adjNode;
+            return reverse ? arcsAtNode.get(index).from : arcsAtNode.get(index).to;
         }
 
         @Override
@@ -234,6 +234,7 @@ public class PrepareGraph {
 
         @Override
         public void setWeight(double weight) {
+            assert Double.isFinite(weight);
             arcsAtNode.get(index).weight = weight;
         }
 
@@ -250,8 +251,8 @@ public class PrepareGraph {
 
     public static class Arc {
         private final int arc;
-        private final int baseNode;
-        private final int adjNode;
+        private final int from;
+        private final int to;
         private double weight;
         private final int origEdgeKeyFirst;
         private final int origEdgeKeyLast;
@@ -259,21 +260,22 @@ public class PrepareGraph {
         private int skipped2;
         private int origEdgeCount;
 
-        private static Arc edge(int arc, int baseNode, int adjNode, int edge, double weight) {
+        private static Arc edge(int arc, int from, int to, int edge, double weight) {
             int key = edge << 1;
-            if (baseNode > adjNode)
+            if (from > to)
                 key += 1;
-            return new Arc(arc, baseNode, adjNode, weight, key, key, -1, -1, 1);
+            return new Arc(arc, from, to, weight, key, key, -1, -1, 1);
         }
 
-        private static Arc shortcut(int arc, int baseNode, int adjNode, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new Arc(arc, baseNode, adjNode, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
+        private static Arc shortcut(int arc, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new Arc(arc, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
         }
 
-        private Arc(int arc, int baseNode, int adjNode, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+        private Arc(int arc, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
             this.arc = arc;
-            this.baseNode = baseNode;
-            this.adjNode = adjNode;
+            this.from = from;
+            this.to = to;
+            assert Double.isFinite(weight);
             this.weight = weight;
             this.origEdgeKeyFirst = origEdgeKeyFirst;
             this.origEdgeKeyLast = origEdgeKeyLast;
@@ -288,7 +290,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return baseNode + "-" + adjNode + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
+            return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
         }
     }
 }

@@ -37,7 +37,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     private final IntArrayList edgeMap = new IntArrayList();
     private final Params params = new Params();
     private PrepareCHEdgeExplorer allEdgeExplorer;
-    private NodeBasedWitnessPathSearcher prepareAlgo;
+    private NodeBasedWitnessPathSearcher witnessPathSearcher;
     private int addedShortcutsCount;
     private long dijkstraCount;
     private StopWatch dijkstraSW = new StopWatch();
@@ -66,7 +66,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
             edgeMap.set(i, i);
         }
         allEdgeExplorer = prepareGraph.createAllEdgeExplorer();
-        prepareAlgo = new NodeBasedWitnessPathSearcher(pg);
+        witnessPathSearcher = new NodeBasedWitnessPathSearcher(pg);
     }
 
     @Override
@@ -82,7 +82,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     @Override
     public void close() {
         super.close();
-        prepareAlgo.close();
+        witnessPathSearcher.close();
     }
 
     /**
@@ -92,9 +92,6 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
      */
     @Override
     public float calculatePriority(int node) {
-        if (isContracted(node))
-            throw new IllegalArgumentException("Priority should only be calculated for not yet contracted nodes");
-
         // # huge influence: the bigger the less shortcuts gets created and the faster is the preparation
         //
         // every adjNode has an 'original edge' number associated. initially it is r=1
@@ -179,7 +176,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     @Override
     public String getStatisticsString() {
         return String.format(Locale.ROOT, "meanDegree: %.2f, dijkstras: %10s, mem: %10s",
-                meanDegree, nf(dijkstraCount), prepareAlgo.getMemoryUsageAsString());
+                meanDegree, nf(dijkstraCount), witnessPathSearcher.getMemoryUsageAsString());
     }
 
     /**
@@ -207,7 +204,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
             // collect outgoing nodes (goal-nodes) only once
             PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
             // force fresh maps etc as this cannot be determined by from node alone (e.g. same from node but different avoidNode)
-            prepareAlgo.clear();
+            witnessPathSearcher.clear();
             degree++;
             while (outgoingEdges.next()) {
                 int toNode = outgoingEdges.getAdjNode();
@@ -222,17 +219,17 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
                 if (Double.isInfinite(existingDirectWeight))
                     continue;
 
-                prepareAlgo.setWeightLimit(existingDirectWeight);
-                prepareAlgo.setMaxVisitedNodes(maxVisitedNodes);
-                prepareAlgo.ignoreNode(node);
+                witnessPathSearcher.setWeightLimit(existingDirectWeight);
+                witnessPathSearcher.setMaxVisitedNodes(maxVisitedNodes);
+                witnessPathSearcher.ignoreNode(node);
 
                 dijkstraSW.start();
                 dijkstraCount++;
-                int endNode = prepareAlgo.findEndNode(fromNode, toNode);
+                int endNode = witnessPathSearcher.findEndNode(fromNode, toNode);
                 dijkstraSW.stop();
 
                 // compare end node as the limit could force dijkstra to finish earlier
-                if (endNode == toNode && prepareAlgo.getWeight(endNode) <= existingDirectWeight)
+                if (endNode == toNode && witnessPathSearcher.getWeight(endNode) <= existingDirectWeight)
                     // FOUND witness path, so do not add shortcut
                     continue;
 

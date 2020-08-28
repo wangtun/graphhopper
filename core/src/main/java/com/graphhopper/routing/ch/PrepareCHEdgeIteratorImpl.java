@@ -166,12 +166,6 @@ public class PrepareCHEdgeIteratorImpl implements PrepareCHEdgeExplorer, Prepare
     }
 
     @Override
-    public int getMergeStatus(int flags) {
-        assertBaseNodeSet();
-        return ((CHEdgeIterator) chIterator).getMergeStatus(flags);
-    }
-
-    @Override
     public void setFlagsAndWeight(int flags, double weight) {
         assertBaseNodeSet();
         ((CHEdgeIterator) chIterator).setFlagsAndWeight(flags, weight);

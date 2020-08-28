@@ -771,7 +771,10 @@ public class CHTurnCostTest {
         automaticPrepareCH();
         compareCHQueryWithDijkstra(0, 3);
         compareCHQueryWithDijkstra(1, 4);
-        automaticCompareCHWithDijkstra(100);
+        final Random rnd = new Random(System.nanoTime());
+        for (int i = 0; i < 100; ++i) {
+            compareCHQueryWithDijkstra(rnd.nextInt(graph.getNodes()), rnd.nextInt(graph.getNodes()));
+        }
     }
 
     @Test
