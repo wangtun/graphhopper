@@ -101,11 +101,6 @@ class EdgeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     @Override
-    public void prepareContraction() {
-        // not needed 
-    }
-
-    @Override
     public void remapSkipEdges() {
         AllCHEdgesIterator iter = prepareGraph.getAllEdges();
         while (iter.next()) {
