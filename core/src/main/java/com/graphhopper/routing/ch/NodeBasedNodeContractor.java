@@ -336,9 +336,7 @@ class NodeBasedNodeContractor extends AbstractNodeContractor {
     }
 
     private int getMaxVisitedNodesEstimate() {
-        // todo: we return 0 here if meanDegree is < 1, which is not really what we want, but changing this changes
-        // the node contraction order and requires re-optimizing the parameters of the graph contraction
-        return (int) meanDegree * 100;
+        return (int) (meanDegree * 100);
     }
 
     @FunctionalInterface
