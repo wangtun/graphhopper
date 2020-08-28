@@ -87,8 +87,8 @@ public class PrepareGraph {
         inArcs.get(to).add(arc);
     }
 
-    public int addShortcut(int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        Arc arc = Arc.shortcut(arcs, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, origEdgeCount);
+    public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+        Arc arc = Arc.shortcut(arcs, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
         outArcs.get(from).add(arc);
         inArcs.get(to).add(arc);
         arcs++;
@@ -133,9 +133,9 @@ public class PrepareGraph {
 
         boolean isShortcut();
 
-        int getOrigEdgeFirst();
+        int getOrigEdgeKeyFirst();
 
-        int getOrigEdgeLast();
+        int getOrigEdgeKeyLast();
 
         int getSkipped1();
 
@@ -197,13 +197,13 @@ public class PrepareGraph {
         }
 
         @Override
-        public int getOrigEdgeFirst() {
-            return arcsAtNode.get(index).origEdgeFirst;
+        public int getOrigEdgeKeyFirst() {
+            return arcsAtNode.get(index).origEdgeKeyFirst;
         }
 
         @Override
-        public int getOrigEdgeLast() {
-            return arcsAtNode.get(index).origEdgeLast;
+        public int getOrigEdgeKeyLast() {
+            return arcsAtNode.get(index).origEdgeKeyLast;
         }
 
         @Override
@@ -253,27 +253,30 @@ public class PrepareGraph {
         private final int baseNode;
         private final int adjNode;
         private double weight;
-        private final int origEdgeFirst;
-        private final int origEdgeLast;
+        private final int origEdgeKeyFirst;
+        private final int origEdgeKeyLast;
         private int skipped1;
         private int skipped2;
         private int origEdgeCount;
 
         private static Arc edge(int arc, int baseNode, int adjNode, int edge, double weight) {
-            return new Arc(arc, baseNode, adjNode, weight, edge, edge, -1, -1, 1);
+            int key = edge << 1;
+            if (baseNode > adjNode)
+                key += 1;
+            return new Arc(arc, baseNode, adjNode, weight, key, key, -1, -1, 1);
         }
 
-        private static Arc shortcut(int arc, int baseNode, int adjNode, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new Arc(arc, baseNode, adjNode, weight, origEdgeFirst, origEdgeLast, skipped1, skipped2, origEdgeCount);
+        private static Arc shortcut(int arc, int baseNode, int adjNode, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new Arc(arc, baseNode, adjNode, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
         }
 
-        private Arc(int arc, int baseNode, int adjNode, double weight, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, int origEdgeCount) {
+        private Arc(int arc, int baseNode, int adjNode, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
             this.arc = arc;
             this.baseNode = baseNode;
             this.adjNode = adjNode;
             this.weight = weight;
-            this.origEdgeFirst = origEdgeFirst;
-            this.origEdgeLast = origEdgeLast;
+            this.origEdgeKeyFirst = origEdgeKeyFirst;
+            this.origEdgeKeyLast = origEdgeKeyLast;
             this.skipped1 = skipped1;
             this.skipped2 = skipped2;
             this.origEdgeCount = origEdgeCount;
@@ -285,7 +288,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return baseNode + "-" + adjNode + " (" + origEdgeFirst + ", " + origEdgeLast + ") " + weight;
+            return baseNode + "-" + adjNode + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
         }
     }
 }
