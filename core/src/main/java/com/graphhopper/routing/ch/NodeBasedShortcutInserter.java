@@ -44,11 +44,12 @@ class NodeBasedShortcutInserter {
         shortcuts.clear();
     }
 
-    public void addShortcut(int arcFwd, int arcBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
-        shortcuts.add(new Shortcut(arcFwd, arcBwd, node, adjNode, skipped1, skipped2, flags, weight));
+    public void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+        shortcuts.add(new Shortcut(prepareEdgeFwd, prepareEdgeBwd, node, adjNode, skipped1, skipped2, flags, weight));
     }
 
-    public void addShortcutWithUpdate(int arc, int arcBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+    public void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+        // todonow: see what we should keep from this old comment:
         // FOUND shortcut
         // but be sure that it is the only shortcut in the collection
         // and also in the graph for u->w. If existing AND identical weight => update setProperties.
@@ -60,7 +61,7 @@ class NodeBasedShortcutInserter {
                 if (getShortcutForArc(sc.skippedEdge1) == getShortcutForArc(skipped1) && getShortcutForArc(sc.skippedEdge2) == getShortcutForArc(skipped2)) {
                     if (sc.flags == PrepareEncoder.getScFwdDir()) {
                         sc.flags = PrepareEncoder.getScDirMask();
-                        sc.arcBwd = arcBwd;
+                        sc.prepareEdgeBwd = prepareEdgeBwd;
                         bidir = true;
                         break;
                     }
@@ -68,7 +69,7 @@ class NodeBasedShortcutInserter {
             }
         }
         if (!bidir) {
-            shortcuts.add(new Shortcut(-1, arcBwd, node, adjNode, skipped1, skipped2, flags, weight));
+            shortcuts.add(new Shortcut(-1, prepareEdgeBwd, node, adjNode, skipped1, skipped2, flags, weight));
         }
     }
 
@@ -82,12 +83,12 @@ class NodeBasedShortcutInserter {
         for (Shortcut sc : shortcuts) {
             int scId = chGraph.shortcut(sc.from, sc.to, sc.flags, sc.weight, sc.skippedEdge1, sc.skippedEdge2);
             if (sc.flags == PrepareEncoder.getScFwdDir()) {
-                setShortcutForArc(sc.arcFwd, scId);
+                setShortcutForArc(sc.prepareEdgeFwd, scId);
             } else if (sc.flags == PrepareEncoder.getScBwdDir()) {
-                setShortcutForArc(sc.arcBwd, scId);
+                setShortcutForArc(sc.prepareEdgeBwd, scId);
             } else {
-                setShortcutForArc(sc.arcFwd, scId);
-                setShortcutForArc(sc.arcBwd, scId);
+                setShortcutForArc(sc.prepareEdgeFwd, scId);
+                setShortcutForArc(sc.prepareEdgeBwd, scId);
             }
             shortcutCount++;
         }
@@ -116,8 +117,8 @@ class NodeBasedShortcutInserter {
     }
 
     private static class Shortcut {
-        int arcFwd;
-        int arcBwd;
+        int prepareEdgeFwd;
+        int prepareEdgeBwd;
         int from;
         int to;
         int skippedEdge1;
@@ -125,9 +126,9 @@ class NodeBasedShortcutInserter {
         double weight;
         int flags;
 
-        public Shortcut(int arcFwd, int arcBwd, int from, int to, int skippedEdge1, int skippedEdge2, int flags, double weight) {
-            this.arcFwd = arcFwd;
-            this.arcBwd = arcBwd;
+        public Shortcut(int prepareEdgeFwd, int prepareEdgeBwd, int from, int to, int skippedEdge1, int skippedEdge2, int flags, double weight) {
+            this.prepareEdgeFwd = prepareEdgeFwd;
+            this.prepareEdgeBwd = prepareEdgeBwd;
             this.from = from;
             this.to = to;
             this.skippedEdge1 = skippedEdge1;

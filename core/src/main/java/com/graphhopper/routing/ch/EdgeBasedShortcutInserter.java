@@ -28,15 +28,15 @@ import java.util.List;
 public class EdgeBasedShortcutInserter {
     private final CHGraph chGraph;
     private final List<Shortcut> shortcuts;
-    private final IntArrayList shortcutsByArcs;
+    private final IntArrayList shortcutsByPrepareEdges;
 
     public EdgeBasedShortcutInserter(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
         int origEdges = chGraph.getOriginalEdges();
-        this.shortcutsByArcs = new IntArrayList(origEdges);
+        this.shortcutsByPrepareEdges = new IntArrayList(origEdges);
         for (int i = 0; i < origEdges; i++) {
-            setShortcutForArc(i, i);
+            setShortcutForPrepareEdge(i, i);
         }
     }
 
@@ -44,8 +44,8 @@ public class EdgeBasedShortcutInserter {
         shortcuts.clear();
     }
 
-    public void addShortcut(int arc, int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, boolean reverse) {
-        shortcuts.add(new Shortcut(arc, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, reverse));
+    public void addShortcut(int prepareEdge, int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, boolean reverse) {
+        shortcuts.add(new Shortcut(prepareEdge, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, reverse));
     }
 
     public void finishContractingNode() {
@@ -53,7 +53,7 @@ public class EdgeBasedShortcutInserter {
             int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
             int scId = chGraph.shortcutEdgeBased(sc.from, sc.to, flags,
                     sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
-            setShortcutForArc(sc.arc, scId);
+            setShortcutForPrepareEdge(sc.prepareEdge, scId);
         }
     }
 
@@ -68,18 +68,18 @@ public class EdgeBasedShortcutInserter {
         }
     }
 
-    private void setShortcutForArc(int arc, int shortcut) {
-        if (arc >= shortcutsByArcs.size())
-            shortcutsByArcs.resize(arc + 1);
-        shortcutsByArcs.set(arc, shortcut);
+    private void setShortcutForPrepareEdge(int prepareEdge, int shortcut) {
+        if (prepareEdge >= shortcutsByPrepareEdges.size())
+            shortcutsByPrepareEdges.resize(prepareEdge + 1);
+        shortcutsByPrepareEdges.set(prepareEdge, shortcut);
     }
 
-    private int getShortcutForArc(int arc) {
-        return shortcutsByArcs.get(arc);
+    private int getShortcutForArc(int prepareEdge) {
+        return shortcutsByPrepareEdges.get(prepareEdge);
     }
 
     private static class Shortcut {
-        private final int arc;
+        private final int prepareEdge;
         private final int from;
         private final int to;
         private final int origFirst;
@@ -89,8 +89,8 @@ public class EdgeBasedShortcutInserter {
         private final double weight;
         private final boolean reverse;
 
-        public Shortcut(int arc, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight, boolean reverse) {
-            this.arc = arc;
+        public Shortcut(int prepareEdge, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight, boolean reverse) {
+            this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             this.origFirst = origFirst;

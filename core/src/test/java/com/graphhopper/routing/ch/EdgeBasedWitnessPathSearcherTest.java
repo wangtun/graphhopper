@@ -61,9 +61,9 @@ public class EdgeBasedWitnessPathSearcherTest {
         EdgeBasedWitnessPathSearcher finder = createFinder();
         finder.initSearch(2, 1, 0);
         PrepareCHEntry result = finder.runSearch(3, 3);
-        PrepareCHEntry expected = new ExpectedResultBuilder(3, 2, 2, 2.0)
-                .withParent(2, 1, 1, 1.0)
-                .build(1);
+        PrepareCHEntry expected = new ExpectedResultBuilder(3, 2, 4, 2.0)
+                .withParent(2, 1, 2, 1.0)
+                .build(2);
         assertFinderResult(expected, result);
     }
 
@@ -79,9 +79,9 @@ public class EdgeBasedWitnessPathSearcherTest {
         EdgeBasedWitnessPathSearcher finder = createFinder();
         finder.initSearch(2, 1, 0);
         PrepareCHEntry result = finder.runSearch(3, 3);
-        PrepareCHEntry expected = new ExpectedResultBuilder(3, 2, 2, 2.0)
-                .withParent(2, 1, 1, 1.0)
-                .build(1);
+        PrepareCHEntry expected = new ExpectedResultBuilder(3, 2, 4, 2.0)
+                .withParent(2, 1, 2, 1.0)
+                .build(2);
         assertFinderResult(expected, result);
     }
 
@@ -139,7 +139,7 @@ public class EdgeBasedWitnessPathSearcherTest {
     private void assertFinderResult(PrepareCHEntry expected, PrepareCHEntry result) {
         while (expected.parent != null) {
             assertEquals(expected.adjNode, result.adjNode);
-            assertEquals(expected.edge, result.edge);
+            assertEquals(expected.prepareEdge, result.prepareEdge);
             assertEquals(expected.incEdgeKey, result.incEdgeKey);
             assertEquals(expected.weight, result.weight, 1.e-6);
             expected = expected.getParent();
@@ -148,23 +148,23 @@ public class EdgeBasedWitnessPathSearcherTest {
     }
 
     private static class ExpectedResultBuilder {
-        private PrepareCHEntry result;
+        private final PrepareCHEntry result;
         private PrepareCHEntry last;
 
-        private ExpectedResultBuilder(int adjNode, int edge, int incEdgeKey, double weight) {
-            result = new PrepareCHEntry(edge, incEdgeKey, adjNode, weight);
+        private ExpectedResultBuilder(int adjNode, int edge, int incKey, double weight) {
+            result = new PrepareCHEntry(edge, incKey, adjNode, weight);
             last = result;
         }
 
-        ExpectedResultBuilder withParent(int adjNode, int edge, int incEdgeKey, double weight) {
-            PrepareCHEntry parent = new PrepareCHEntry(edge, incEdgeKey, adjNode, weight);
+        ExpectedResultBuilder withParent(int adjNode, int edge, int incKey, double weight) {
+            PrepareCHEntry parent = new PrepareCHEntry(edge, incKey, adjNode, weight);
             last.parent = parent;
             last = parent;
             return this;
         }
 
-        PrepareCHEntry build(int firstEdgeKey) {
-            last.parent = new PrepareCHEntry(EdgeIterator.NO_EDGE, firstEdgeKey, -1, 0.0);
+        PrepareCHEntry build(int firstKey) {
+            last.parent = new PrepareCHEntry(EdgeIterator.NO_EDGE, firstKey, -1, 0.0);
             return result;
         }
 

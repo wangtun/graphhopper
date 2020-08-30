@@ -35,8 +35,8 @@ public class PrepareGraph {
     private final Graph graph;
     private final Weighting weighting;
     private int nodes;
-    private List<List<Arc>> outArcs;
-    private List<List<Arc>> inArcs;
+    private List<List<PrepareEdge>> outArcs;
+    private List<List<PrepareEdge>> inArcs;
     private List<List<Edge>> outEdges;
     private List<List<Edge>> inEdges;
     private int edges;
@@ -56,8 +56,8 @@ public class PrepareGraph {
 
     public void initFromGraph() {
         nodes = graph.getNodes();
-        outArcs = IntStream.range(0, graph.getNodes()).<List<Arc>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inArcs = IntStream.range(0, graph.getNodes()).<List<Arc>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outArcs = IntStream.range(0, graph.getNodes()).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inArcs = IntStream.range(0, graph.getNodes()).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         outEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         AllEdgesIterator iter = graph.getAllEdges();
@@ -93,9 +93,9 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        Arc arc = Arc.edge(edge, from, to, edge, weight);
-        outArcs.get(from).add(arc);
-        inArcs.get(to).add(arc);
+        PrepareEdge prepareEdge = PrepareEdge.edge(edge, from, to, edge, weight);
+        outArcs.get(from).add(prepareEdge);
+        inArcs.get(to).add(prepareEdge);
 
         Edge e = new Edge(edge, from, to);
         outEdges.get(from).add(e);
@@ -103,9 +103,9 @@ public class PrepareGraph {
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        Arc arc = Arc.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
-        outArcs.get(from).add(arc);
-        inArcs.get(to).add(arc);
+        PrepareEdge prepareEdge = PrepareEdge.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
+        outArcs.get(from).add(prepareEdge);
+        inArcs.get(to).add(prepareEdge);
         edges++;
         return edges - 1;
     }
@@ -128,13 +128,17 @@ public class PrepareGraph {
 
     public IntSet disconnect(int node) {
         IntSet neighbors = new IntHashSet(getDegree(node));
-        for (Arc arc : outArcs.get(node)) {
-            inArcs.get(arc.to).removeIf(a -> a == arc);
-            neighbors.add(arc.to);
+        for (PrepareEdge prepareEdge : outArcs.get(node)) {
+            if (prepareEdge.to == node)
+                continue;
+            inArcs.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
+            neighbors.add(prepareEdge.to);
         }
-        for (Arc arc : inArcs.get(node)) {
-            outArcs.get(arc.from).removeIf(a -> a == arc);
-            neighbors.add(arc.from);
+        for (PrepareEdge prepareEdge : inArcs.get(node)) {
+            if (prepareEdge.from == node)
+                continue;
+            outArcs.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
+            neighbors.add(prepareEdge.from);
         }
         outArcs.get(node).clear();
         inArcs.get(node).clear();
@@ -152,7 +156,7 @@ public class PrepareGraph {
 
         int getAdjNode();
 
-        int getArc();
+        int getPrepareEdge();
 
         boolean isShortcut();
 
@@ -176,12 +180,12 @@ public class PrepareGraph {
     }
 
     public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
-        private final List<List<Arc>> arcs;
+        private final List<List<PrepareEdge>> arcs;
         private final boolean reverse;
-        private List<Arc> arcsAtNode;
+        private List<PrepareEdge> arcsAtNode;
         private int index;
 
-        PrepareGraphExplorerImpl(List<List<Arc>> arcs, boolean reverse) {
+        PrepareGraphExplorerImpl(List<List<PrepareEdge>> arcs, boolean reverse) {
             this.arcs = arcs;
             this.reverse = reverse;
         }
@@ -210,8 +214,8 @@ public class PrepareGraph {
         }
 
         @Override
-        public int getArc() {
-            return arcsAtNode.get(index).arc;
+        public int getPrepareEdge() {
+            return arcsAtNode.get(index).prepareEdge;
         }
 
         @Override
@@ -357,8 +361,8 @@ public class PrepareGraph {
         }
     }
 
-    public static class Arc {
-        private final int arc;
+    public static class PrepareEdge {
+        private final int prepareEdge;
         private final int from;
         private final int to;
         private double weight;
@@ -368,19 +372,19 @@ public class PrepareGraph {
         private int skipped2;
         private int origEdgeCount;
 
-        private static Arc edge(int arc, int from, int to, int edge, double weight) {
+        private static PrepareEdge edge(int arc, int from, int to, int edge, double weight) {
             int key = edge << 1;
             if (from > to)
                 key += 1;
-            return new Arc(arc, from, to, weight, key, key, -1, -1, 1);
+            return new PrepareEdge(arc, from, to, weight, key, key, -1, -1, 1);
         }
 
-        private static Arc shortcut(int arc, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new Arc(arc, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
+        private static PrepareEdge shortcut(int arc, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new PrepareEdge(arc, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
         }
 
-        private Arc(int arc, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
-            this.arc = arc;
+        private PrepareEdge(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+            this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             assert Double.isFinite(weight);

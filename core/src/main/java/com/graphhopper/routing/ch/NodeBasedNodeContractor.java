@@ -127,7 +127,7 @@ class NodeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcut(iter.getArc(), -1, node, iter.getAdjNode(), iter.getSkipped1(), iter.getSkipped2(),
+                shortcutInserter.addShortcut(iter.getPrepareEdge(), -1, node, iter.getAdjNode(), iter.getSkipped1(), iter.getSkipped2(),
                         PrepareEncoder.getScFwdDir(), iter.getWeight());
             }
         }
@@ -136,7 +136,7 @@ class NodeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcutWithUpdate(-1, iter.getArc(), node, iter.getAdjNode(), iter.getSkipped2(), iter.getSkipped1(),
+                shortcutInserter.addShortcutWithUpdate(-1, iter.getPrepareEdge(), node, iter.getAdjNode(), iter.getSkipped2(), iter.getSkipped1(),
                         PrepareEncoder.getScBwdDir(), iter.getWeight());
             }
         }
@@ -208,8 +208,8 @@ class NodeBasedNodeContractor implements NodeContractor {
                     continue;
 
                 handler.handleShortcut(fromNode, toNode, existingDirectWeight,
-                        outgoingEdges.getArc(), outgoingEdges.getOrigEdgeCount(),
-                        incomingEdges.getArc(), incomingEdges.getOrigEdgeCount());
+                        outgoingEdges.getPrepareEdge(), outgoingEdges.getOrigEdgeCount(),
+                        incomingEdges.getPrepareEdge(), incomingEdges.getOrigEdgeCount());
             }
         }
         return degree;

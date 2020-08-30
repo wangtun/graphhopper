@@ -17,26 +17,35 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.graphhopper.routing.SPTEntry;
-
-public class PrepareCHEntry extends SPTEntry {
+public class PrepareCHEntry {
     /**
      * The edge key of the incoming original edge at this shortest path tree entry. For original edges this is the same
      * as the edge key, but for shortcuts this is the edge key of the last original edge of the shortcut.
      */
     public int incEdgeKey;
+    /**
+     * The ID of the edge associated with this entry in the prepare graph (this is not the same number that will later
+     * be the ID of the edge/shortcut in the CHGraph.
+     */
+    public int prepareEdge;
+    public int adjNode;
+    public double weight;
+    public PrepareCHEntry parent;
 
-    public PrepareCHEntry(int edge, int incEdgeKey, int adjNode, double weight) {
-        super(edge, adjNode, weight);
+    public PrepareCHEntry(int prepareEdge, int incEdgeKey, int adjNode, double weight) {
+        this.prepareEdge = prepareEdge;
+        this.adjNode = adjNode;
+        this.weight = weight;
         this.incEdgeKey = incEdgeKey;
     }
 
     public PrepareCHEntry getParent() {
-        return (PrepareCHEntry) super.parent;
+        return parent;
     }
 
     @Override
     public String toString() {
-        return super.toString() + ", incEdgeKey: " + incEdgeKey;
+        return (adjNode + " (" + prepareEdge + ") weight: " + weight) + ", incEdgeKey: " + incEdgeKey;
     }
+
 }

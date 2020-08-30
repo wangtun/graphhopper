@@ -150,7 +150,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcut(iter.getArc(), node, iter.getAdjNode(),
+                shortcutInserter.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
                         iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), false);
             }
@@ -162,7 +162,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                     continue;
                 if (iter.getAdjNode() == node)
                     continue;
-                shortcutInserter.addShortcut(iter.getArc(), node, iter.getAdjNode(),
+                shortcutInserter.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
                         iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true);
             }
@@ -265,7 +265,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
     }
 
     private PrepareCHEntry addShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
-        if (edgeTo.parent.edge != edgeFrom.edge) {
+        if (edgeTo.parent.prepareEdge != edgeFrom.prepareEdge) {
             // counting origEdgeCount correctly is tricky with loop shortcuts and this recursion, but it probably does
             // not matter that much
             PrepareCHEntry prev = addShortcut(edgeFrom, edgeTo.getParent(), origEdgeCount);
@@ -288,16 +288,15 @@ class EdgeBasedNodeContractor implements NodeContractor {
             final double existingWeight = iter.getWeight();
             if (existingWeight <= edgeTo.weight) {
                 // our shortcut already exists with lower weight --> do nothing
-                PrepareCHEntry entry = new PrepareCHEntry(iter.getArc(), iter.getOrigEdgeKeyLast(), adjNode, existingWeight);
+                PrepareCHEntry entry = new PrepareCHEntry(iter.getPrepareEdge(), iter.getOrigEdgeKeyLast(), adjNode, existingWeight);
                 entry.parent = edgeFrom.parent;
                 return entry;
             } else {
                 // update weight
-                iter.setSkippedEdges(edgeFrom.edge, edgeTo.edge);
+                iter.setSkippedEdges(edgeFrom.prepareEdge, edgeTo.prepareEdge);
                 iter.setWeight(edgeTo.weight);
-                // todonow: this seems more correct, but check how it affects performance
-//                iter.setOrigEdgeCount(origEdgeCount);
-                PrepareCHEntry entry = new PrepareCHEntry(iter.getArc(), iter.getOrigEdgeKeyLast(), adjNode, edgeTo.weight);
+                iter.setOrigEdgeCount(origEdgeCount);
+                PrepareCHEntry entry = new PrepareCHEntry(iter.getPrepareEdge(), iter.getOrigEdgeKeyLast(), adjNode, edgeTo.weight);
                 entry.parent = edgeFrom.parent;
                 return entry;
             }
@@ -308,10 +307,10 @@ class EdgeBasedNodeContractor implements NodeContractor {
         int origFirstKey = edgeFrom.getParent().incEdgeKey;
         LOGGER.trace("Adding shortcut from {} to {}, weight: {}, firstOrigEdgeKey: {}, lastOrigEdgeKey: {}",
                 from, adjNode, edgeTo.weight, origFirstKey, edgeTo.incEdgeKey);
-        int arc = prepareGraph.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.edge, edgeTo.edge, edgeTo.weight, origEdgeCount);
+        int prepareEdge = prepareGraph.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.prepareEdge, edgeTo.prepareEdge, edgeTo.weight, origEdgeCount);
         addedShortcutsCount++;
         int incEdgeKey = -1;
-        PrepareCHEntry entry = new PrepareCHEntry(arc, incEdgeKey, edgeTo.adjNode, edgeTo.weight);
+        PrepareCHEntry entry = new PrepareCHEntry(prepareEdge, incEdgeKey, edgeTo.adjNode, edgeTo.weight);
         entry.parent = edgeFrom.parent;
         return entry;
     }
@@ -497,7 +496,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                                 continue;
                             }
                             PrepareCHEntry root = entry.getParent();
-                            while (EdgeIterator.Edge.isValid(root.parent.edge)) {
+                            while (EdgeIterator.Edge.isValid(root.parent.prepareEdge)) {
                                 root = root.getParent();
                             }
                             // removing this 'optimization' improves contraction time, but introduces more
