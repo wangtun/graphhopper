@@ -435,6 +435,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private class AggressiveStrategy implements SearchStrategy {
         private final IntSet sourceNodes = new IntHashSet(10);
         private final IntSet toNodes = new IntHashSet(10);
+        private final LongSet addedShortcuts = new LongHashSet();
 
         @Override
         public String getStatisticsString() {
@@ -451,7 +452,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             LOGGER.trace("Finding shortcuts (aggressive) for node {}, required shortcuts will be {}ed", node, activeShortcutHandler.getAction());
             stats().nodes++;
             resetEdgeCounters();
-            LongSet addedShortcuts = new LongHashSet();
+            addedShortcuts.clear();
 
             // first we need to identify the possible source nodes from which we can reach the center node
             sourceNodes.clear();
