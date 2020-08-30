@@ -44,8 +44,8 @@ class NodeBasedShortcutInserter {
         shortcuts.clear();
     }
 
-    public void addShortcut(int arc, int arcBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
-        shortcuts.add(new Shortcut(arc, arcBwd, node, adjNode, skipped1, skipped2, flags, weight));
+    public void addShortcut(int arcFwd, int arcBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+        shortcuts.add(new Shortcut(arcFwd, arcBwd, node, adjNode, skipped1, skipped2, flags, weight));
     }
 
     public void addShortcutWithUpdate(int arc, int arcBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
@@ -82,11 +82,11 @@ class NodeBasedShortcutInserter {
         for (Shortcut sc : shortcuts) {
             int scId = chGraph.shortcut(sc.from, sc.to, sc.flags, sc.weight, sc.skippedEdge1, sc.skippedEdge2);
             if (sc.flags == PrepareEncoder.getScFwdDir()) {
-                setShortcutForArc(sc.arc, scId);
+                setShortcutForArc(sc.arcFwd, scId);
             } else if (sc.flags == PrepareEncoder.getScBwdDir()) {
                 setShortcutForArc(sc.arcBwd, scId);
             } else {
-                setShortcutForArc(sc.arc, scId);
+                setShortcutForArc(sc.arcFwd, scId);
                 setShortcutForArc(sc.arcBwd, scId);
             }
             shortcutCount++;
@@ -116,7 +116,7 @@ class NodeBasedShortcutInserter {
     }
 
     private static class Shortcut {
-        int arc;
+        int arcFwd;
         int arcBwd;
         int from;
         int to;
@@ -125,8 +125,8 @@ class NodeBasedShortcutInserter {
         double weight;
         int flags;
 
-        public Shortcut(int arc, int arcBwd, int from, int to, int skippedEdge1, int skippedEdge2, int flags, double weight) {
-            this.arc = arc;
+        public Shortcut(int arcFwd, int arcBwd, int from, int to, int skippedEdge1, int skippedEdge2, int flags, double weight) {
+            this.arcFwd = arcFwd;
             this.arcBwd = arcBwd;
             this.from = from;
             this.to = to;
