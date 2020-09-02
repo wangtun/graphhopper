@@ -158,6 +158,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
+                // we added loops using the outEdgeExplorer already above
                 if (iter.getAdjNode() == node)
                     continue;
                 shortcutInserter.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
