@@ -34,7 +34,9 @@ import com.graphhopper.storage.*;
 import com.graphhopper.util.CHEdgeIteratorState;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PMap;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -71,14 +73,14 @@ public class NodeBasedNodeContractorTest {
         return nodeContractor;
     }
 
-    @Test
-    public void testDirectedGraph() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testDirectedGraph(boolean reverse) {
         //5 6 7
         // \|/
         //4-3_1<-\ 10
         //     \_|/
         //   0___2_11
-
         graph.edge(0, 2, 2, true);
         graph.edge(10, 2, 2, true);
         graph.edge(11, 2, 2, true);
@@ -94,13 +96,16 @@ public class NodeBasedNodeContractorTest {
 
         setMaxLevelOnAllNodes();
 
-        // find all shortcuts if we contract node 1
-        NodeContractor nodeContractor = createNodeContractor();
-        nodeContractor.contractNode(1);
-        checkShortcuts(
-                expectedShortcut(3, 2, edge1to3, edge2to1bidirected, true, true),
-                expectedShortcut(2, 3, edge2to1directed, edge1to3, true, false)
-        );
+        // find all shortcuts if we contract node 1 first, the order in which we contract nodes 2 and 3 decides
+        // what kind of shortcut is added. in any case it uses the shorter bidirected edge instead of the longer
+        // directed one
+        if (reverse) {
+            contractInOrder(1, 0, 11, 10, 4, 5, 6, 7, 3, 2);
+            checkShortcuts(expectedShortcut(3, 2, edge1to3, edge2to1bidirected, true, true));
+        } else {
+            contractInOrder(1, 0, 11, 10, 4, 5, 6, 7, 2, 3);
+            checkShortcuts(expectedShortcut(2, 3, edge2to1bidirected, edge1to3, true, true));
+        }
     }
 
     @Test
@@ -117,59 +122,52 @@ public class NodeBasedNodeContractorTest {
         graph.edge(6, 7, 1, true);
         graph.freeze();
 
-        int sc1to4 = lg.shortcut(1, 4, PrepareEncoder.getScDirMask(), 2, iter1to3.getEdge(), iter3to4.getEdge());
-        int sc4to6 = lg.shortcut(4, 6, PrepareEncoder.getScFwdDir(), 2, iter4to5.getEdge(), iter5to6.getEdge());
-        int sc6to4 = lg.shortcut(6, 4, PrepareEncoder.getScFwdDir(), 3, iter6to8.getEdge(), iter8to4.getEdge());
-
-        setMaxLevelOnAllNodes();
-
-        lg.setLevel(3, 3);
-        lg.setLevel(5, 5);
-        lg.setLevel(7, 7);
-        lg.setLevel(8, 8);
-
-        Shortcut manualSc1 = expectedShortcut(1, 4, iter1to3, iter3to4, true, true);
-        Shortcut manualSc2 = expectedShortcut(4, 6, iter4to5, iter5to6, true, false);
-        Shortcut manualSc3 = expectedShortcut(6, 4, iter6to8, iter8to4, true, false);
-        checkShortcuts(manualSc1, manualSc2, manualSc3);
-
-        // after 'manual contraction' of nodes 3, 5, 8 the graph looks like:
+        contractInOrder(3, 5, 7, 8, 4, 1, 7);
+        // note: after contraction of nodes 3, 5, 8 the graph looks like this:
         // 1 -- 4 -->-- 6 -- 7
         //       \      |
         //        --<----
 
-        // contract node 4!
-        NodeContractor nodeContractor = createNodeContractor();
-        nodeContractor.contractNode(4);
-        checkShortcuts(manualSc1, manualSc2, manualSc3,
+        checkShortcuts(
+                expectedShortcut(4, 1, iter3to4, iter1to3, true, true),
+                expectedShortcut(4, 6, iter8to4, iter6to8, false, true),
+                expectedShortcut(4, 6, iter4to5, iter5to6, true, false),
                 // there should be two different shortcuts for both directions!
-                expectedShortcut(1, 6, lg.getEdgeIteratorState(sc1to4, 4), lg.getEdgeIteratorState(sc4to6, 6), true, false),
-                expectedShortcut(6, 1, lg.getEdgeIteratorState(sc6to4, 4), lg.getEdgeIteratorState(sc1to4, 1), true, false)
+                expectedShortcut(1, 6, lg.getEdgeIteratorState(7, 4), lg.getEdgeIteratorState(8, 6), true, false),
+                expectedShortcut(1, 6, lg.getEdgeIteratorState(7, 1), lg.getEdgeIteratorState(9, 4), false, true)
         );
     }
 
-    @Test
-    public void testShortcutMergeBug() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testShortcutMergeBug(boolean reverse) {
         // We refer to this real world situation http://www.openstreetmap.org/#map=19/52.71205/-1.77326
         // assume the following graph:
         //
         // ---1---->----2-----3
         //    \--------/
         //
-        // where there are two roads from 1 to 2 and the directed road has a smaller weight
-        // leading to two shortcuts sc1 (unidir) and sc2 (bidir) where the second should NOT be rejected due to the larger weight
-        final EdgeIteratorState edge1to2bidirected = graph.edge(1, 2, 1, true);
+        // where there are two roads from 1 to 2 and the directed road has a smaller weight. to get from 2 to 1 we
+        // have to use the bidirectional edge despite the higher weight and therefore we need an extra shortcut for
+        // this.
+        final EdgeIteratorState edge1to2bidirected = graph.edge(1, 2, 2, true);
         final EdgeIteratorState edge1to2directed = graph.edge(1, 2, 1, false);
         final EdgeIteratorState edge2to3 = graph.edge(2, 3, 1, true);
         graph.freeze();
         setMaxLevelOnAllNodes();
-        contractInOrder(2, 1, 3);
-//        NodeContractor nodeContractor = createNodeContractor();
-//        nodeContractor.contractNode(2);
-        checkShortcuts(
-                expectedShortcut(3, 1, edge2to3, edge1to2bidirected, true, false),
-                expectedShortcut(1, 3, edge1to2directed, edge2to3, true, false)
-        );
+        if (reverse) {
+            contractInOrder(2, 1, 3);
+            checkShortcuts(
+                    expectedShortcut(1, 3, edge1to2directed, edge2to3, true, false),
+                    expectedShortcut(1, 3, edge1to2bidirected, edge2to3, false, true)
+            );
+        } else {
+            contractInOrder(2, 3, 1);
+            checkShortcuts(
+                    expectedShortcut(3, 1, edge2to3, edge1to2bidirected, true, false),
+                    expectedShortcut(3, 1, edge2to3, edge1to2directed, false, true)
+            );
+        }
     }
 
     @Test
@@ -190,7 +188,7 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge2 = graph.edge(1, 0, 2, false);
         graph.freeze();
         setMaxLevelOnAllNodes();
-        contractInOrder(1, 0, 2);
+        contractInOrder(1, 2, 0);
         checkShortcuts(expectedShortcut(2, 0, edge1, edge2, true, false));
     }
 
@@ -200,7 +198,7 @@ public class NodeBasedNodeContractorTest {
         final EdgeIteratorState edge1 = graph.edge(0, 1, 1, true);
         final EdgeIteratorState edge2 = graph.edge(1, 2, 2, true);
         graph.freeze();
-        contractInOrder(1, 0, 2);
+        contractInOrder(1, 2, 0);
         checkShortcuts(expectedShortcut(2, 0, edge2, edge1, true, true));
     }
 
@@ -261,7 +259,7 @@ public class NodeBasedNodeContractorTest {
         // 0 to 4 directly via edge 4 is cheaper. however, if shortcut distances get truncated it appears as if going
         // via node 2 is better. here we check that this does not happen.
         checkShortcuts(
-                expectedShortcut(0, 2, edge1, edge2, true, false),
+                expectedShortcut(2, 0, edge2, edge1, false, true),
                 expectedShortcut(2, 4, edge3, edge4, true, false)
         );
     }
