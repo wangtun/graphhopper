@@ -172,19 +172,19 @@ public class PrepareGraph {
     }
 
     public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
-        private final List<List<PrepareEdge>> arcs;
+        private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
-        private List<PrepareEdge> arcsAtNode;
+        private List<PrepareEdge> prepareEdgesAtNode;
         private int index;
 
-        PrepareGraphExplorerImpl(List<List<PrepareEdge>> arcs, boolean reverse) {
-            this.arcs = arcs;
+        PrepareGraphExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
+            this.prepareEdges = prepareEdges;
             this.reverse = reverse;
         }
 
         @Override
         public PrepareGraphIterator setBaseNode(int node) {
-            this.arcsAtNode = arcs.get(node);
+            this.prepareEdgesAtNode = prepareEdges.get(node);
             this.index = -1;
             return this;
         }
@@ -192,74 +192,74 @@ public class PrepareGraph {
         @Override
         public boolean next() {
             index++;
-            return index < arcsAtNode.size();
+            return index < prepareEdgesAtNode.size();
         }
 
         @Override
         public int getBaseNode() {
-            return reverse ? arcsAtNode.get(index).to : arcsAtNode.get(index).from;
+            return reverse ? prepareEdgesAtNode.get(index).to : prepareEdgesAtNode.get(index).from;
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? arcsAtNode.get(index).from : arcsAtNode.get(index).to;
+            return reverse ? prepareEdgesAtNode.get(index).from : prepareEdgesAtNode.get(index).to;
         }
 
         @Override
         public int getPrepareEdge() {
-            return arcsAtNode.get(index).prepareEdge;
+            return prepareEdgesAtNode.get(index).prepareEdge;
         }
 
         @Override
         public boolean isShortcut() {
-            return arcsAtNode.get(index).isShortcut();
+            return prepareEdgesAtNode.get(index).isShortcut();
         }
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return arcsAtNode.get(index).origEdgeKeyFirst;
+            return prepareEdgesAtNode.get(index).origEdgeKeyFirst;
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return arcsAtNode.get(index).origEdgeKeyLast;
+            return prepareEdgesAtNode.get(index).origEdgeKeyLast;
         }
 
         @Override
         public int getSkipped1() {
-            return arcsAtNode.get(index).skipped1;
+            return prepareEdgesAtNode.get(index).skipped1;
         }
 
         @Override
         public int getSkipped2() {
-            return arcsAtNode.get(index).skipped2;
+            return prepareEdgesAtNode.get(index).skipped2;
         }
 
         @Override
         public double getWeight() {
-            return arcsAtNode.get(index).weight;
+            return prepareEdgesAtNode.get(index).weight;
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return arcsAtNode.get(index).origEdgeCount;
+            return prepareEdgesAtNode.get(index).origEdgeCount;
         }
 
         @Override
         public void setSkippedEdges(int skipped1, int skipped2) {
-            arcsAtNode.get(index).skipped1 = skipped1;
-            arcsAtNode.get(index).skipped2 = skipped2;
+            prepareEdgesAtNode.get(index).skipped1 = skipped1;
+            prepareEdgesAtNode.get(index).skipped2 = skipped2;
         }
 
         @Override
         public void setWeight(double weight) {
             assert Double.isFinite(weight);
-            arcsAtNode.get(index).weight = weight;
+            prepareEdgesAtNode.get(index).weight = weight;
         }
 
         @Override
         public void setOrigEdgeCount(int origEdgeCount) {
-            arcsAtNode.get(index).origEdgeCount = origEdgeCount;
+            prepareEdgesAtNode.get(index).origEdgeCount = origEdgeCount;
         }
 
         @Override

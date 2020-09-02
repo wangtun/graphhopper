@@ -27,17 +27,15 @@ import java.util.List;
 
 public class EdgeBasedShortcutInserter {
     private final CHGraph chGraph;
+    private final int origEdges;
     private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
 
     public EdgeBasedShortcutInserter(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
-        int origEdges = chGraph.getOriginalEdges();
-        this.shortcutsByPrepareEdges = new IntArrayList(origEdges);
-        for (int i = 0; i < origEdges; i++) {
-            setShortcutForPrepareEdge(i, i);
-        }
+        this.origEdges = chGraph.getOriginalEdges();
+        this.shortcutsByPrepareEdges = new IntArrayList();
     }
 
     public void startContractingNode() {
@@ -69,13 +67,17 @@ public class EdgeBasedShortcutInserter {
     }
 
     private void setShortcutForPrepareEdge(int prepareEdge, int shortcut) {
-        if (prepareEdge >= shortcutsByPrepareEdges.size())
-            shortcutsByPrepareEdges.resize(prepareEdge + 1);
-        shortcutsByPrepareEdges.set(prepareEdge, shortcut);
+        int index = prepareEdge - origEdges;
+        if (index >= shortcutsByPrepareEdges.size())
+            shortcutsByPrepareEdges.resize(index + 1);
+        shortcutsByPrepareEdges.set(index, shortcut);
     }
 
     private int getShortcutForArc(int prepareEdge) {
-        return shortcutsByPrepareEdges.get(prepareEdge);
+        if (prepareEdge < origEdges)
+            return prepareEdge;
+        int index = prepareEdge - origEdges;
+        return shortcutsByPrepareEdges.get(index);
     }
 
     private static class Shortcut {

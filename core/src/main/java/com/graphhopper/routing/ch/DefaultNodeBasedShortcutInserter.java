@@ -27,6 +27,7 @@ import java.util.List;
 
 class DefaultNodeBasedShortcutInserter implements NodeBasedShortcutInserter {
     private final CHGraph chGraph;
+    private final int origEdges;
     // todo: maybe use a set to prevent duplicates instead?
     private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
@@ -34,12 +35,8 @@ class DefaultNodeBasedShortcutInserter implements NodeBasedShortcutInserter {
     DefaultNodeBasedShortcutInserter(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
-        int origEdges = chGraph.getOriginalEdges();
-        shortcutsByPrepareEdges = new IntArrayList(origEdges);
-        for (int i = 0; i < origEdges; i++) {
-            // todo: improvement, reduce memory usage, no need to store this trivial information!
-            setShortcutForPrepareEdge(i, i);
-        }
+        this.origEdges = chGraph.getOriginalEdges();
+        shortcutsByPrepareEdges = new IntArrayList();
     }
 
     @Override
@@ -110,14 +107,18 @@ class DefaultNodeBasedShortcutInserter implements NodeBasedShortcutInserter {
         }
     }
 
-    private void setShortcutForPrepareEdge(int arc, int shortcut) {
-        if (arc >= shortcutsByPrepareEdges.size())
-            shortcutsByPrepareEdges.resize(arc + 1);
-        shortcutsByPrepareEdges.set(arc, shortcut);
+    private void setShortcutForPrepareEdge(int prepareEdge, int shortcut) {
+        int index = prepareEdge - origEdges;
+        if (index >= shortcutsByPrepareEdges.size())
+            shortcutsByPrepareEdges.resize(index + 1);
+        shortcutsByPrepareEdges.set(index, shortcut);
     }
 
-    private int getShortcutForPrepareEdge(int arc) {
-        return shortcutsByPrepareEdges.get(arc);
+    private int getShortcutForPrepareEdge(int prepareEdge) {
+        if (prepareEdge < origEdges)
+            return prepareEdge;
+        int index = prepareEdge - origEdges;
+        return shortcutsByPrepareEdges.get(index);
     }
 
     private static class Shortcut {
