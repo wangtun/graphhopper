@@ -56,13 +56,14 @@ public class NodeBasedNodeContractorTest {
     private final Weighting weighting = new ShortestWeighting(encoder);
     private final GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("profile", weighting)).create();
     private final CHGraph lg = graph.getCHGraph();
-    private final PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
 
     private NodeContractor createNodeContractor() {
-        return createNodeContractor(lg, prepareGraph);
+        return createNodeContractor(lg);
     }
 
-    private NodeContractor createNodeContractor(CHGraph chGraph, PrepareGraph prepareGraph) {
+    private NodeContractor createNodeContractor(CHGraph chGraph) {
+        PrepareGraph prepareGraph = new PrepareGraph(chGraph.getNodes());
+        prepareGraph.initFromGraph(chGraph.getBaseGraph(), chGraph.getCHConfig().getWeighting());
         NodeBasedShortcutInserter shortcutInserter = new DefaultNodeBasedShortcutInserter(chGraph);
         NodeContractor nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, new PMap());
         nodeContractor.initFromGraph();
@@ -275,7 +276,6 @@ public class NodeBasedNodeContractorTest {
         Weighting weighting = new FastestWeighting(encoder);
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
-        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 ------------> 4
         //  \             /
         //   1 --> 2 --> 3
@@ -290,7 +290,7 @@ public class NodeBasedNodeContractorTest {
         setMaxLevelOnAllNodes(lg);
 
         // perform CH contraction
-        contractInOrder(lg, prepareGraph, 1, 3, 2, 0, 4);
+        contractInOrder(lg, 1, 3, 2, 0, 4);
 
         // first we compare dijkstra with CH to make sure they produce the same results
         int from = 0;
@@ -314,7 +314,6 @@ public class NodeBasedNodeContractorTest {
         Weighting weighting = new FastestWeighting(encoder);
         GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("p1", weighting)).create();
         CHGraph lg = graph.getCHGraph();
-        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
         // 0 - 1 - 2 - 3
         // o           o
         graph.edge(0, 1, 1, true);
@@ -325,18 +324,18 @@ public class NodeBasedNodeContractorTest {
 
         graph.freeze();
         setMaxLevelOnAllNodes(lg);
-        NodeContractor nodeContractor = createNodeContractor(lg, prepareGraph);
+        NodeContractor nodeContractor = createNodeContractor(lg);
         nodeContractor.contractNode(0);
         nodeContractor.contractNode(3);
         checkNoShortcuts(lg);
     }
 
     private void contractInOrder(int... nodeIds) {
-        contractInOrder(lg, prepareGraph, nodeIds);
+        contractInOrder(lg, nodeIds);
     }
 
-    private void contractInOrder(CHGraph chGraph, PrepareGraph prepareGraph, int... nodeIds) {
-        NodeContractor nodeContractor = createNodeContractor(chGraph, prepareGraph);
+    private void contractInOrder(CHGraph chGraph, int... nodeIds) {
+        NodeContractor nodeContractor = createNodeContractor(chGraph);
         int level = 0;
         for (int n : nodeIds) {
             nodeContractor.contractNode(n);

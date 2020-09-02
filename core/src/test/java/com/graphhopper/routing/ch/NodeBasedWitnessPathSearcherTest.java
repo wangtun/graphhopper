@@ -39,12 +39,12 @@ class NodeBasedWitnessPathSearcherTest {
     private final Weighting weighting = new ShortestWeighting(encoder);
     private final GraphHopperStorage graph = new GraphBuilder(encodingManager).setCHConfigs(CHConfig.nodeBased("profile", weighting)).create();
     private final CHGraph lg = graph.getCHGraph();
-    private final PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph, weighting);
 
     @Test
     public void testShortestPathSkipNode() {
         createExampleGraph();
-        prepareGraph.initFromGraph();
+        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        prepareGraph.initFromGraph(graph, weighting);
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
         NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
@@ -64,7 +64,8 @@ class NodeBasedWitnessPathSearcherTest {
     @Test
     public void testShortestPathSkipNode2() {
         createExampleGraph();
-        prepareGraph.initFromGraph();
+        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        prepareGraph.initFromGraph(graph, weighting);
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
         assertEquals(3, normalDist, 1e-5);
         NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
@@ -83,7 +84,8 @@ class NodeBasedWitnessPathSearcherTest {
     @Test
     public void testShortestPathLimit() {
         createExampleGraph();
-        prepareGraph.initFromGraph();
+        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        prepareGraph.initFromGraph(graph, weighting);
         NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
         setMaxLevelOnAllNodes();

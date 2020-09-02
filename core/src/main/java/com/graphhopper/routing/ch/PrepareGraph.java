@@ -33,34 +33,25 @@ import java.util.stream.IntStream;
 import static java.util.stream.Collectors.toList;
 
 public class PrepareGraph {
-    private final Graph graph;
-    private final Weighting weighting;
-    private int nodes;
-    private List<List<PrepareEdge>> outArcs;
-    private List<List<PrepareEdge>> inArcs;
-    private List<List<Edge>> outEdges;
-    private List<List<Edge>> inEdges;
+    private final int nodes;
     private int edges;
+    private final List<List<PrepareEdge>> outArcs;
+    private final List<List<PrepareEdge>> inArcs;
+    private final List<List<Edge>> outEdges;
+    private final List<List<Edge>> inEdges;
 
-    public static PrepareGraph nodeBased(Graph graph, Weighting weighting) {
-        return new PrepareGraph(graph, weighting);
+    public PrepareGraph(int nodes) {
+        this.nodes = nodes;
+        outArcs = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inArcs = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outEdges = IntStream.range(0, nodes).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inEdges = IntStream.range(0, nodes).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
     }
 
-    public static PrepareGraph edgeBased(Graph graph, Weighting weighting) {
-        return new PrepareGraph(graph, weighting);
-    }
-
-    private PrepareGraph(Graph graph, Weighting weighting) {
-        this.graph = graph;
-        this.weighting = weighting;
-    }
-
-    public void initFromGraph() {
-        nodes = graph.getNodes();
-        outArcs = IntStream.range(0, graph.getNodes()).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inArcs = IntStream.range(0, graph.getNodes()).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        outEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+    public void initFromGraph(Graph graph, Weighting weighting) {
+        if (graph.getNodes() != nodes)
+            throw new IllegalArgumentException("Cannot initialize from given graph. The number of nodes does not match: " +
+                    graph.getNodes() + " vs. " + nodes);
         edges = graph.getEdges();
         BooleanEncodedValue accessEnc = weighting.getFlagEncoder().getAccessEnc();
         AllEdgesIterator iter = graph.getAllEdges();
@@ -87,7 +78,7 @@ public class PrepareGraph {
     }
 
     public int getOriginalEdges() {
-        return graph.getEdges();
+        return edges;
     }
 
     public int getDegree(int node) {

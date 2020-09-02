@@ -93,7 +93,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
-        prepareGraph.initFromGraph();
         inEdgeExplorer = prepareGraph.createInEdgeExplorer();
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
@@ -308,6 +307,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                 from, adjNode, edgeTo.weight, origFirstKey, edgeTo.incEdgeKey);
         int prepareEdge = prepareGraph.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.prepareEdge, edgeTo.prepareEdge, edgeTo.weight, origEdgeCount);
         addedShortcutsCount++;
+        // does not matter here
         int incEdgeKey = -1;
         PrepareCHEntry entry = new PrepareCHEntry(prepareEdge, incEdgeKey, edgeTo.adjNode, edgeTo.weight);
         entry.parent = edgeFrom.parent;
@@ -499,9 +499,8 @@ class EdgeBasedNodeContractor implements NodeContractor {
                                 root = root.getParent();
                             }
                             // removing this 'optimization' improves contraction time, but introduces more
-                            // shortcuts (makes slower queries). note that 'duplicate' shortcuts get detected at time
-                            // of insertion when running with adding shortcut handler, but not when we are only counting.
-                            // only running this check while counting does not seem to improve contraction time a lot.
+                            // shortcuts (makes slower queries). we are not detecting 'duplicate' shortcuts at a later
+                            // stage especially when we are just running with the counting handler.
                             long addedShortcutKey = BitUtil.LITTLE.combineIntsToLong(root.getParent().incEdgeKey, entry.incEdgeKey);
                             if (!addedShortcuts.add(addedShortcutKey))
                                 continue;

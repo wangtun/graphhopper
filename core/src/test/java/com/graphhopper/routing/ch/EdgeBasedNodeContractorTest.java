@@ -1370,6 +1370,7 @@ public class EdgeBasedNodeContractorTest {
             nodeContractor.contractNode(node);
             chGraph.setLevel(node, node);
         }
+        nodeContractor.finishContraction();
     }
 
     /**
@@ -1382,11 +1383,12 @@ public class EdgeBasedNodeContractorTest {
             nodeContractor.contractNode(nodes[i]);
             chGraph.setLevel(nodes[i], i);
         }
+        nodeContractor.finishContraction();
     }
 
     private EdgeBasedNodeContractor createNodeContractor() {
-        PrepareGraph prepareGraph = PrepareGraph.edgeBased(graph, weighting);
-        prepareGraph.initFromGraph();
+        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        prepareGraph.initFromGraph(graph, weighting);
         EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
         EdgeBasedNodeContractor nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, weighting::calcTurnWeight, new PMap());
         nodeContractor.initFromGraph();

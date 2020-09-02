@@ -60,6 +60,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final StopWatch neighborUpdateSW = new StopWatch();
     private final StopWatch contractionSW = new StopWatch();
     private final Params params;
+    private final Graph graph;
+    private final PrepareGraph prepareGraph;
     private final NodeContractor nodeContractor;
     private final int nodes;
     private NodeOrderingProvider nodeOrderingProvider;
@@ -75,6 +77,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     }
 
     private PrepareContractionHierarchies(GraphHopperStorage ghStorage, CHConfig chConfig) {
+        graph = ghStorage;
         chGraph = ghStorage.getCHGraph(chConfig.getName());
         if (chGraph == null)
             throw new IllegalArgumentException("There is no CH graph '" + chConfig.getName() + "', existing: " + ghStorage.getCHGraphNames());
@@ -86,13 +89,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             if (turnCostStorage == null) {
                 throw new IllegalArgumentException("For edge-based CH you need a turn cost storage");
             }
-            PrepareGraph pg = PrepareGraph.edgeBased(ghStorage, chConfig.getWeighting());
+            prepareGraph = new PrepareGraph(ghStorage.getNodes());
             EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
-            nodeContractor = new EdgeBasedNodeContractor(pg, shortcutInserter, chConfig.getWeighting()::calcTurnWeight, pMap);
+            nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, chConfig.getWeighting()::calcTurnWeight, pMap);
         } else {
-            PrepareGraph pg = PrepareGraph.nodeBased(ghStorage, chConfig.getWeighting());
+            prepareGraph = new PrepareGraph(ghStorage.getNodes());
             NodeBasedShortcutInserter shortcutInserter = new DefaultNodeBasedShortcutInserter(chGraph);
-            nodeContractor = new NodeBasedNodeContractor(pg, shortcutInserter, pMap);
+            nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, pMap);
         }
     }
 
@@ -166,6 +169,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
         oldPriorities = new float[nodes];
+        prepareGraph.initFromGraph(graph, getWeighting());
         nodeContractor.initFromGraph();
     }
 

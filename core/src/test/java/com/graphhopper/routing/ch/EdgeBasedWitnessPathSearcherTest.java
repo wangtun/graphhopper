@@ -124,8 +124,8 @@ public class EdgeBasedWitnessPathSearcherTest {
     }
 
     private EdgeBasedWitnessPathSearcher createFinder() {
-        PrepareGraph pg = PrepareGraph.edgeBased(graph, weighting);
-        pg.initFromGraph();
+        PrepareGraph pg = new PrepareGraph(graph.getNodes());
+        pg.initFromGraph(graph, weighting);
         return new EdgeBasedWitnessPathSearcher(pg, weighting::calcTurnWeight, new PMap());
     }
 

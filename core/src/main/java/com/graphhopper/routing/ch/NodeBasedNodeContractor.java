@@ -58,7 +58,7 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
-        prepareGraph.initFromGraph();
+        // todonow: do we really need this initFromGaph?
         inEdgeExplorer = prepareGraph.createInEdgeExplorer();
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
@@ -141,6 +141,8 @@ class NodeBasedNodeContractor implements NodeContractor {
         long degree = handleShortcuts(node, this::addOrUpdateShortcut);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
+        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
+        // even though this is not optimal from a speed performance point of view.
         return prepareGraph.disconnect(node);
     }
 
