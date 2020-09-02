@@ -18,7 +18,6 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntSet;
-import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.StopWatch;
 
@@ -30,7 +29,6 @@ import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor implements NodeContractor {
     private final PrepareGraph prepareGraph;
-    private final Weighting weighting;
     private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
@@ -39,7 +37,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
     private int addedShortcutsCount;
     private long dijkstraCount;
-    private StopWatch dijkstraSW = new StopWatch();
+    private final StopWatch dijkstraSW = new StopWatch();
     // meanDegree is the number of edges / number of nodes ratio of the graph, not really the average degree, because
     // each edge can exist in both directions
     private double meanDegree;
@@ -47,9 +45,8 @@ class NodeBasedNodeContractor implements NodeContractor {
     private int originalEdgesCount;
     private int shortcutsCount;
 
-    NodeBasedNodeContractor(PrepareGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
+    NodeBasedNodeContractor(PrepareGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, PMap pMap) {
         this.prepareGraph = prepareGraph;
-        this.weighting = weighting;
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
     }

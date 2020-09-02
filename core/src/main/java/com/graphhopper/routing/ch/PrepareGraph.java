@@ -92,22 +92,21 @@ public class PrepareGraph {
         return outArcs.get(node).size() + inArcs.get(node).size();
     }
 
-    public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdge = PrepareEdge.edge(edge, from, to, edge, weight);
-        outArcs.get(from).add(prepareEdge);
-        inArcs.get(to).add(prepareEdge);
+    public void addEdge(int from, int to, int prepareEdge, double weight) {
+        PrepareEdge prepareEdgeObj = PrepareEdge.edge(prepareEdge, from, to, weight);
+        outArcs.get(from).add(prepareEdgeObj);
+        inArcs.get(to).add(prepareEdgeObj);
 
-        Edge e = new Edge(edge, from, to);
-        outEdges.get(from).add(e);
-        inEdges.get(to).add(e);
+        Edge edgeObj = new Edge(prepareEdge, from, to);
+        outEdges.get(from).add(edgeObj);
+        inEdges.get(to).add(edgeObj);
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
         PrepareEdge prepareEdge = PrepareEdge.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
         outArcs.get(from).add(prepareEdge);
         inArcs.get(to).add(prepareEdge);
-        edges++;
-        return edges - 1;
+        return edges++;
     }
 
     public PrepareGraphExplorer createOutEdgeExplorer() {
@@ -272,7 +271,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return getBaseNode() + "-" + getAdjNode();
+            return index < 0 ? "not_started" : getBaseNode() + "-" + getAdjNode();
         }
     }
 
@@ -346,6 +345,11 @@ public class PrepareGraph {
         public int getOrigEdgeKeyLast() {
             return getOrigEdgeKeyFirst();
         }
+
+        @Override
+        public String toString() {
+            return getEdge() + ": " + getBaseNode() + "-" + getAdjNode();
+        }
     }
 
 
@@ -372,15 +376,15 @@ public class PrepareGraph {
         private int skipped2;
         private int origEdgeCount;
 
-        private static PrepareEdge edge(int arc, int from, int to, int edge, double weight) {
-            int key = edge << 1;
+        private static PrepareEdge edge(int prepareEdge, int from, int to, double weight) {
+            int key = prepareEdge << 1;
             if (from > to)
                 key += 1;
-            return new PrepareEdge(arc, from, to, weight, key, key, -1, -1, 1);
+            return new PrepareEdge(prepareEdge, from, to, weight, key, key, -1, -1, 1);
         }
 
-        private static PrepareEdge shortcut(int arc, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new PrepareEdge(arc, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
+        private static PrepareEdge shortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new PrepareEdge(prepareEdge, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
         }
 
         private PrepareEdge(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {

@@ -500,6 +500,5 @@ public class EdgeBasedWitnessPathSearcher {
             numSettledEdges = 0;
             maxNumSettledEdges = 0;
         }
-
     }
 }

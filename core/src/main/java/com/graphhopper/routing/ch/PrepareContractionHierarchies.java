@@ -92,7 +92,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         } else {
             PrepareGraph pg = PrepareGraph.nodeBased(ghStorage, chConfig.getWeighting());
             NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(chGraph);
-            nodeContractor = new NodeBasedNodeContractor(pg, shortcutInserter, chConfig.getWeighting(), pMap);
+            nodeContractor = new NodeBasedNodeContractor(pg, shortcutInserter, pMap);
         }
     }
 
