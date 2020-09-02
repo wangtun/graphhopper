@@ -166,6 +166,8 @@ class EdgeBasedNodeContractor implements NodeContractor {
             }
         }
         shortcutInserter.finishContractingNode();
+        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
+        // even though this is not optimal from a speed performance point of view.
         IntSet neighbors = prepareGraph.disconnect(node);
         updateHierarchyDepthsOfNeighbors(node, neighbors);
         stats().stopWatch.stop();
@@ -259,7 +261,22 @@ class EdgeBasedNodeContractor implements NodeContractor {
      * doing a u-turn at any of the incoming edges is forbidden, i.e. the costs of the direct turn will be infinite.
      */
     private boolean loopShortcutNecessary(int node, int firstOrigEdge, int lastOrigEdge, double loopWeight) {
-        return true;
+        // todo: loop avoidance does not seem to work for above mentioned reason, remove it?
+        PrepareGraph.BaseGraphIterator inIter = loopAvoidanceInEdgeExplorer.setBaseNode(node);
+        while (inIter.next()) {
+            PrepareGraph.BaseGraphIterator outIter = loopAvoidanceOutEdgeExplorer.setBaseNode(node);
+            double inTurnCost = getTurnCost(inIter.getEdge(), node, firstOrigEdge);
+            while (outIter.next()) {
+                double totalLoopCost = inTurnCost + loopWeight +
+                        getTurnCost(lastOrigEdge, node, outIter.getEdge());
+                double directTurnCost = getTurnCost(inIter.getEdge(), node, outIter.getEdge());
+                if (totalLoopCost < directTurnCost) {
+                    return true;
+                }
+            }
+        }
+        LOGGER.info("Loop avoidance -> no shortcut");
+        return false;
     }
 
     private PrepareCHEntry addShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
@@ -319,6 +336,10 @@ class EdgeBasedNodeContractor implements NodeContractor {
                 && (iter.getAdjNode() == adjNode)
                 && (iter.getOrigEdgeKeyFirst() == firstOrigEdgeKey)
                 && (iter.getOrigEdgeKeyLast() == lastOrigEdgeKey);
+    }
+
+    private double getTurnCost(int inEdge, int node, int outEdge) {
+        return turnCostFunction.getTurnWeight(inEdge, node, outEdge);
     }
 
     private void resetEdgeCounters() {
