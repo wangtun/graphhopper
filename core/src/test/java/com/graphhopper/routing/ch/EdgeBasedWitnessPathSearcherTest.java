@@ -126,7 +126,7 @@ public class EdgeBasedWitnessPathSearcherTest {
     private EdgeBasedWitnessPathSearcher createFinder() {
         PrepareGraph pg = PrepareGraph.edgeBased(graph, weighting);
         pg.initFromGraph();
-        return new EdgeBasedWitnessPathSearcher(pg, weighting, new PMap());
+        return new EdgeBasedWitnessPathSearcher(pg, weighting::calcTurnWeight, new PMap());
     }
 
     private void setMaxLevelOnAllNodes() {

@@ -63,7 +63,7 @@ public class NodeBasedNodeContractorTest {
     }
 
     private NodeContractor createNodeContractor(CHGraph chGraph, PrepareGraph prepareGraph) {
-        NodeBasedShortcutInserter shortcutInserter = new NodeBasedShortcutInserter(chGraph);
+        NodeBasedShortcutInserter shortcutInserter = new DefaultNodeBasedShortcutInserter(chGraph);
         NodeContractor nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, new PMap());
         nodeContractor.initFromGraph();
         nodeContractor.prepareContraction();

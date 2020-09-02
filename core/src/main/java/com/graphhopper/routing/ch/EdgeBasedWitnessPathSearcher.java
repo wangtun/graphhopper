@@ -21,7 +21,6 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.graphhopper.apache.commons.collections.IntDoubleBinaryHeap;
-import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.PMap;
@@ -65,8 +64,7 @@ public class EdgeBasedWitnessPathSearcher {
     private static final int NO_NODE = -1;
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
-    // graph variables
-    private final Weighting weighting;
+    private final TurnCostFunction turnCostFunction;
     private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private final PrepareGraph.BaseGraphExplorer origInEdgeExplorer;
 
@@ -104,8 +102,8 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, Weighting weighting, PMap pMap) {
-        this.weighting = weighting;
+    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, TurnCostFunction turnCostFunction, PMap pMap) {
+        this.turnCostFunction = turnCostFunction;
         extractParams(pMap);
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
@@ -459,7 +457,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return weighting.calcTurnWeight(inEdge, viaNode, outEdge);
+        return turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
     }
 
     static class Params {

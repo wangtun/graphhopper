@@ -1388,7 +1388,7 @@ public class EdgeBasedNodeContractorTest {
         PrepareGraph prepareGraph = PrepareGraph.edgeBased(graph, weighting);
         prepareGraph.initFromGraph();
         EdgeBasedShortcutInserter shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
-        EdgeBasedNodeContractor nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, weighting, new PMap());
+        EdgeBasedNodeContractor nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, weighting::calcTurnWeight, new PMap());
         nodeContractor.initFromGraph();
         return nodeContractor;
     }

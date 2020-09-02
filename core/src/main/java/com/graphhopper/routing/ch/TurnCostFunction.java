@@ -18,14 +18,7 @@
 
 package com.graphhopper.routing.ch;
 
-public interface NodeBasedShortcutInserter {
-    void startContractingNode();
-
-    void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
-
-    void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
-
-    int finishContractingNode();
-
-    void finishContraction();
+@FunctionalInterface
+interface TurnCostFunction {
+    double getTurnWeight(int inEdge, int viaNode, int outEdge);
 }

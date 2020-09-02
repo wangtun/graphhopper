@@ -20,6 +20,7 @@ package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
+import com.graphhopper.routing.ev.BooleanEncodedValue;
 import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
@@ -60,15 +61,17 @@ public class PrepareGraph {
         inArcs = IntStream.range(0, graph.getNodes()).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         outEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inEdges = IntStream.range(0, graph.getNodes()).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        edges = graph.getEdges();
+        BooleanEncodedValue accessEnc = weighting.getFlagEncoder().getAccessEnc();
         AllEdgesIterator iter = graph.getAllEdges();
         while (iter.next()) {
-            if (iter.get(weighting.getFlagEncoder().getAccessEnc())) {
+            if (iter.get(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, false);
                 if (Double.isFinite(weight)) {
                     addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weight);
                 }
             }
-            if (iter.getReverse(weighting.getFlagEncoder().getAccessEnc())) {
+            if (iter.getReverse(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, true);
                 if (Double.isFinite(weight)) {
                     addEdge(iter.getAdjNode(), iter.getBaseNode(), iter.getEdge(), weight);
@@ -77,7 +80,6 @@ public class PrepareGraph {
         }
         outEdges.forEach(Collections::reverse);
         inEdges.forEach(Collections::reverse);
-        edges = graph.getEdges();
     }
 
     public int getNodes() {

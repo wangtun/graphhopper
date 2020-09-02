@@ -22,7 +22,6 @@ import com.carrotsearch.hppc.IntSet;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
-import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +46,7 @@ import static com.graphhopper.util.Helper.nf;
 class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final PrepareGraph prepareGraph;
-    private final Weighting weighting;
+    private final TurnCostFunction turnCostFunction;
     private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
@@ -78,9 +77,9 @@ class EdgeBasedNodeContractor implements NodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, Weighting weighting, PMap pMap) {
+    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, TurnCostFunction turnCostFunction, PMap pMap) {
         this.prepareGraph = prepareGraph;
-        this.weighting = weighting;
+        this.turnCostFunction = turnCostFunction;
         this.shortcutInserter = shortcutInserter;
         this.pMap = pMap;
         extractParams(pMap);
@@ -98,7 +97,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         inEdgeExplorer = prepareGraph.createInEdgeExplorer();
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
         existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
-        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, weighting, pMap);
+        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, turnCostFunction, pMap);
         sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
         targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
         loopAvoidanceInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
