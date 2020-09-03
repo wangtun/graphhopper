@@ -32,7 +32,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
-    private final NodeBasedShortcutInserter shortcutInserter;
+    private final ShortcutHandler shortcutInserter;
     private final Params params = new Params();
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
     private int addedShortcutsCount;
@@ -45,7 +45,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private int originalEdgesCount;
     private int shortcutsCount;
 
-    NodeBasedNodeContractor(PrepareGraph prepareGraph, NodeBasedShortcutInserter shortcutInserter, PMap pMap) {
+    NodeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutInserter, PMap pMap) {
         this.prepareGraph = prepareGraph;
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
@@ -158,7 +158,7 @@ class NodeBasedNodeContractor implements NodeContractor {
      * Returns the 'degree' of the given node (disregarding edges from/to already contracted nodes).
      * Note that here the degree is not the total number of adjacent edges, but only the number of incoming edges
      */
-    private long handleShortcuts(int node, ShortcutHandler handler) {
+    private long handleShortcuts(int node, PrepareShortcutHandler handler) {
         int maxVisitedNodes = getMaxVisitedNodesEstimate();
         long degree = 0;
         PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
@@ -264,7 +264,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     }
 
     @FunctionalInterface
-    private interface ShortcutHandler {
+    private interface PrepareShortcutHandler {
         void handleShortcut(int fromNode, int toNode, double existingDirectWeight,
                             int outgoingEdge, int outOrigEdgeCount,
                             int incomingEdge, int inOrigEdgeCount);
@@ -276,4 +276,15 @@ class NodeBasedNodeContractor implements NodeContractor {
         private float originalEdgesCountWeight = 1;
     }
 
+    public interface ShortcutHandler {
+        void startContractingNode();
+
+        void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
+
+        void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
+
+        int finishContractingNode();
+
+        void finishContraction();
+    }
 }

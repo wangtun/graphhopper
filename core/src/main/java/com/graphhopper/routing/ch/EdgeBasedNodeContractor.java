@@ -50,12 +50,12 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
     private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
-    private final ShortcutHandler addingShortcutHandler = new AddingShortcutHandler();
-    private final ShortcutHandler countingShortcutHandler = new CountingShortcutHandler();
-    private final EdgeBasedShortcutInserter shortcutInserter;
+    private final PrepareShortcutHandler addingShortcutHandler = new AddingPrepareShortcutHandler();
+    private final PrepareShortcutHandler countingShortcutHandler = new CountingPrepareShortcutHandler();
+    private final ShortcutHandler shortcutHandler;
     private final Params params = new Params();
     private final PMap pMap;
-    private ShortcutHandler activeShortcutHandler;
+    private PrepareShortcutHandler activeShortcutHandler;
     private final StopWatch dijkstraSW = new StopWatch();
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
     private int[] hierarchyDepths;
@@ -77,10 +77,10 @@ class EdgeBasedNodeContractor implements NodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutInserter, TurnCostFunction turnCostFunction, PMap pMap) {
+    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutHandler shortcutHandler, TurnCostFunction turnCostFunction, PMap pMap) {
         this.prepareGraph = prepareGraph;
         this.turnCostFunction = turnCostFunction;
-        this.shortcutInserter = shortcutInserter;
+        this.shortcutHandler = shortcutHandler;
         this.pMap = pMap;
         extractParams(pMap);
     }
@@ -111,7 +111,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void finishContraction() {
-        shortcutInserter.finishContraction();
+        shortcutHandler.finishContraction();
     }
 
     @Override
@@ -142,13 +142,13 @@ class EdgeBasedNodeContractor implements NodeContractor {
         activeShortcutHandler = addingShortcutHandler;
         stats().stopWatch.start();
         findAndHandleShortcuts(node);
-        shortcutInserter.startContractingNode();
+        shortcutHandler.startContractingNode();
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
+                shortcutHandler.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
                         iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), false);
             }
@@ -161,12 +161,12 @@ class EdgeBasedNodeContractor implements NodeContractor {
                 // we added loops using the outEdgeExplorer already above
                 if (iter.getAdjNode() == node)
                     continue;
-                shortcutInserter.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
+                shortcutHandler.addShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(),
                         GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyLast()),
                         iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true);
             }
         }
-        shortcutInserter.finishContractingNode();
+        shortcutHandler.finishContractingNode();
         // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
         // even though this is not optimal from a speed performance point of view.
         IntSet neighbors = prepareGraph.disconnect(node);
@@ -359,7 +359,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         return activeShortcutHandler.getStats();
     }
 
-    private interface ShortcutHandler {
+    private interface PrepareShortcutHandler {
 
         void handleShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount);
 
@@ -368,7 +368,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         String getAction();
     }
 
-    private class AddingShortcutHandler implements ShortcutHandler {
+    private class AddingPrepareShortcutHandler implements PrepareShortcutHandler {
         private final Stats stats = new Stats();
 
         @Override
@@ -387,7 +387,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         }
     }
 
-    private class CountingShortcutHandler implements ShortcutHandler {
+    private class CountingPrepareShortcutHandler implements PrepareShortcutHandler {
         private final Stats stats = new Stats();
 
         @Override
@@ -538,4 +538,13 @@ class EdgeBasedNodeContractor implements NodeContractor {
         }
     }
 
+    public interface ShortcutHandler {
+        void startContractingNode();
+
+        void addShortcut(int prepareEdge, int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, boolean reverse);
+
+        void finishContractingNode();
+
+        void finishContraction();
+    }
 }

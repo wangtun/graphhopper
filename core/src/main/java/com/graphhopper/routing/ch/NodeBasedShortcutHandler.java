@@ -25,14 +25,14 @@ import com.graphhopper.storage.CHGraph;
 import java.util.ArrayList;
 import java.util.List;
 
-class DefaultNodeBasedShortcutInserter implements NodeBasedShortcutInserter {
+class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandler {
     private final CHGraph chGraph;
     private final int origEdges;
     // todo: maybe use a set to prevent duplicates instead?
     private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
 
-    DefaultNodeBasedShortcutInserter(CHGraph chGraph) {
+    NodeBasedShortcutHandler(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
         this.origEdges = chGraph.getOriginalEdges();

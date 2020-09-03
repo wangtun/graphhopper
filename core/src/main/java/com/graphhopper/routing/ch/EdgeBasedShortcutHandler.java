@@ -25,27 +25,30 @@ import com.graphhopper.storage.CHGraph;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EdgeBasedShortcutInserter {
+public class EdgeBasedShortcutHandler implements EdgeBasedNodeContractor.ShortcutHandler {
     private final CHGraph chGraph;
     private final int origEdges;
     private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
 
-    public EdgeBasedShortcutInserter(CHGraph chGraph) {
+    public EdgeBasedShortcutHandler(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
         this.origEdges = chGraph.getOriginalEdges();
         this.shortcutsByPrepareEdges = new IntArrayList();
     }
 
+    @Override
     public void startContractingNode() {
         shortcuts.clear();
     }
 
+    @Override
     public void addShortcut(int prepareEdge, int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, boolean reverse) {
         shortcuts.add(new Shortcut(prepareEdge, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, reverse));
     }
 
+    @Override
     public void finishContractingNode() {
         for (Shortcut sc : shortcuts) {
             int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
@@ -55,6 +58,7 @@ public class EdgeBasedShortcutInserter {
         }
     }
 
+    @Override
     public void finishContraction() {
         AllCHEdgesIterator iter = chGraph.getAllEdges();
         while (iter.next()) {
