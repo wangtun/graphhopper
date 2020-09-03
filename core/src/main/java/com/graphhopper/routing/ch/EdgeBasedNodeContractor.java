@@ -62,8 +62,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
     private int[] hierarchyDepths;
     private EdgeBasedWitnessPathSearcher witnessPathSearcher;
-    private PrepareGraph.BaseGraphExplorer loopAvoidanceInEdgeExplorer;
-    private PrepareGraph.BaseGraphExplorer loopAvoidanceOutEdgeExplorer;
 
     // counts the total number of added shortcuts
     private int addedShortcutsCount;
@@ -99,8 +97,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
     @Override
     public void initFromGraph() {
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, turnCostFunction, pMap);
-        loopAvoidanceInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
-        loopAvoidanceOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
         hierarchyDepths = new int[prepareGraph.getNodes()];
     }
 
@@ -239,43 +235,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
         }
     }
 
-    private void handleShortcuts(PrepareCHEntry chEntry, PrepareCHEntry root, int origEdgeCount) {
-        LOGGER.trace("Adding shortcuts for target entry {}", chEntry);
-        if (root.parent.adjNode == chEntry.adjNode &&
-                //here we misuse root.parent.incEdge as first orig edge of the potential shortcut
-                !loopShortcutNecessary(
-                        chEntry.adjNode, GHUtility.getEdgeFromEdgeKey(root.getParent().incEdgeKey),
-                        GHUtility.getEdgeFromEdgeKey(chEntry.incEdgeKey), chEntry.weight)) {
-            stats().loopsAvoided++;
-            return;
-        }
-        activeShortcutHandler.handleShortcut(root, chEntry, origEdgeCount);
-    }
-
-    /**
-     * A given potential loop shortcut is only necessary if there is at least one pair of original in- & out-edges for
-     * which taking the loop is cheaper than doing the direct turn. However this is almost always the case, because
-     * doing a u-turn at any of the incoming edges is forbidden, i.e. the costs of the direct turn will be infinite.
-     */
-    private boolean loopShortcutNecessary(int node, int firstOrigEdge, int lastOrigEdge, double loopWeight) {
-        // todo: loop avoidance does not seem to work for above mentioned reason, remove it?
-        PrepareGraph.BaseGraphIterator inIter = loopAvoidanceInEdgeExplorer.setBaseNode(node);
-        while (inIter.next()) {
-            PrepareGraph.BaseGraphIterator outIter = loopAvoidanceOutEdgeExplorer.setBaseNode(node);
-            double inTurnCost = getTurnCost(inIter.getEdge(), node, firstOrigEdge);
-            while (outIter.next()) {
-                double totalLoopCost = inTurnCost + loopWeight +
-                        getTurnCost(lastOrigEdge, node, outIter.getEdge());
-                double directTurnCost = getTurnCost(inIter.getEdge(), node, outIter.getEdge());
-                if (totalLoopCost < directTurnCost) {
-                    return true;
-                }
-            }
-        }
-        LOGGER.info("Loop avoidance -> no shortcut");
-        return false;
-    }
-
     private PrepareCHEntry addShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
         if (edgeTo.parent.prepareEdge != edgeFrom.prepareEdge) {
             // counting origEdgeCount correctly is tricky with loop shortcuts and this recursion, but it probably does
@@ -333,10 +292,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
                 && (iter.getAdjNode() == adjNode)
                 && (iter.getOrigEdgeKeyFirst() == firstOrigEdgeKey)
                 && (iter.getOrigEdgeKeyLast() == lastOrigEdgeKey);
-    }
-
-    private double getTurnCost(int inEdge, int node, int outEdge) {
-        return turnCostFunction.getTurnWeight(inEdge, node, outEdge);
     }
 
     private void resetEdgeCounters() {
@@ -525,7 +480,8 @@ class EdgeBasedNodeContractor implements NodeContractor {
                             // root parent weight was misused to store initial turn cost here
                             double initialTurnCost = root.getParent().weight;
                             entry.weight -= initialTurnCost;
-                            handleShortcuts(entry, root, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
+                            LOGGER.trace("Adding shortcuts for target entry {}", entry);
+                            activeShortcutHandler.handleShortcut(root, entry, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
                         }
                     }
                     numPolledEdges += witnessPathSearcher.getNumPolledEdges();
