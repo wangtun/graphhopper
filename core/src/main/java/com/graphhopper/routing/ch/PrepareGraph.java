@@ -26,7 +26,6 @@ import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -69,8 +68,9 @@ public class PrepareGraph {
                 }
             }
         }
-        outEdges.forEach(Collections::reverse);
-        inEdges.forEach(Collections::reverse);
+        // todonow:
+//        outEdges.forEach(Collections::reverse);
+//        inEdges.forEach(Collections::reverse);
     }
 
     public int getNodes() {
