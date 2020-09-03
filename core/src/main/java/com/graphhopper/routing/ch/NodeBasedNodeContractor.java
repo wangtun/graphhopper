@@ -113,8 +113,8 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     @Override
     public IntSet contractNode(int node) {
-        insertShortcuts(node);
         long degree = findAndHandleShortcuts(node, this::addOrUpdateShortcut);
+        insertShortcuts(node);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
         // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
