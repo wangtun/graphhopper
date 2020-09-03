@@ -22,45 +22,36 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.graphhopper.routing.util.AllCHEdgesIterator;
 import com.graphhopper.storage.CHGraph;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Shortcut handler that inserts the given shortcuts into a CHGraph
  */
 public class EdgeBasedShortcutInserter implements EdgeBasedNodeContractor.ShortcutHandler {
     private final CHGraph chGraph;
     private final int origEdges;
-    private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
+    private int shortcutCount;
 
     public EdgeBasedShortcutInserter(CHGraph chGraph) {
         this.chGraph = chGraph;
-        this.shortcuts = new ArrayList<>();
         this.origEdges = chGraph.getOriginalEdges();
         this.shortcutsByPrepareEdges = new IntArrayList();
     }
 
     @Override
     public void startContractingNode() {
-        shortcuts.clear();
+        shortcutCount = 0;
     }
 
     @Override
     public void addShortcut(int prepareEdge, int from, int to, int origEdgeFirst, int origEdgeLast, int skipped1, int skipped2, double weight, boolean reverse) {
-        shortcuts.add(new Shortcut(prepareEdge, from, to, origEdgeFirst, origEdgeLast, skipped1, skipped2, weight, reverse));
+        int flags = reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
+        int scId = chGraph.shortcutEdgeBased(from, to, flags, weight, skipped1, skipped2, origEdgeFirst, origEdgeLast);
+        shortcutCount++;
+        setShortcutForPrepareEdge(prepareEdge, scId);
     }
 
     @Override
     public int finishContractingNode() {
-        int shortcutCount = 0;
-        for (Shortcut sc : shortcuts) {
-            int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
-            int scId = chGraph.shortcutEdgeBased(sc.from, sc.to, flags,
-                    sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
-            shortcutCount++;
-            setShortcutForPrepareEdge(sc.prepareEdge, scId);
-        }
         return shortcutCount;
     }
 
@@ -92,32 +83,4 @@ public class EdgeBasedShortcutInserter implements EdgeBasedNodeContractor.Shortc
         return shortcutsByPrepareEdges.get(index);
     }
 
-    private static class Shortcut {
-        private final int prepareEdge;
-        private final int from;
-        private final int to;
-        private final int origFirst;
-        private final int origLast;
-        private final int skip1;
-        private final int skip2;
-        private final double weight;
-        private final boolean reverse;
-
-        public Shortcut(int prepareEdge, int from, int to, int origFirst, int origLast, int skip1, int skip2, double weight, boolean reverse) {
-            this.prepareEdge = prepareEdge;
-            this.from = from;
-            this.to = to;
-            this.origFirst = origFirst;
-            this.origLast = origLast;
-            this.skip1 = skip1;
-            this.skip2 = skip2;
-            this.weight = weight;
-            this.reverse = reverse;
-        }
-
-        @Override
-        public String toString() {
-            return from + "-" + origFirst + "..." + origLast + "-" + to + " (" + skip1 + "," + skip2 + ")";
-        }
-    }
 }
