@@ -34,12 +34,22 @@ import static java.util.stream.Collectors.toList;
 public class PrepareGraph {
     private final int nodes;
     private int edges;
+    private final TurnCostFunction turnCostFunction;
     private final List<List<PrepareEdge>> outEdges;
     private final List<List<PrepareEdge>> inEdges;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
 
-    public PrepareGraph(int nodes) {
+    public static PrepareGraph nodeBased(int nodes) {
+        return new PrepareGraph(nodes, (in, via, out) -> 0);
+    }
+
+    public static PrepareGraph edgeBased(int nodes, TurnCostFunction turnCostFunction) {
+        return new PrepareGraph(nodes, turnCostFunction);
+    }
+
+    private PrepareGraph(int nodes, TurnCostFunction turnCostFunction) {
+        this.turnCostFunction = turnCostFunction;
         this.nodes = nodes;
         outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
@@ -118,6 +128,10 @@ public class PrepareGraph {
         return new PrepareGraphOrigEdgeExplorerImpl(inOrigEdges, true);
     }
 
+    public double getTurnWeight(int inEdge, int viaNode, int outEdge) {
+        return turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
+    }
+
     public IntSet disconnect(int node) {
         IntSet neighbors = new IntHashSet(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
@@ -137,7 +151,12 @@ public class PrepareGraph {
         return neighbors;
     }
 
-    public static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
+    @FunctionalInterface
+    public interface TurnCostFunction {
+        double getTurnWeight(int inEdge, int viaNode, int outEdge);
+    }
+
+    private static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
         private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
         private List<PrepareEdge> prepareEdgesAtNode;

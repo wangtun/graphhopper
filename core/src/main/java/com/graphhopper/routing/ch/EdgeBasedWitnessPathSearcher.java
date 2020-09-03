@@ -64,7 +64,7 @@ public class EdgeBasedWitnessPathSearcher {
     private static final int NO_NODE = -1;
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
-    private final TurnCostFunction turnCostFunction;
+    private final PrepareGraph prepareGraph;
     private final PrepareGraphEdgeExplorer outEdgeExplorer;
     private final PrepareGraphOrigEdgeExplorer origInEdgeExplorer;
 
@@ -102,8 +102,8 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, TurnCostFunction turnCostFunction, PMap pMap) {
-        this.turnCostFunction = turnCostFunction;
+    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, PMap pMap) {
+        this.prepareGraph = prepareGraph;
         extractParams(pMap);
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
@@ -457,7 +457,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
+        return prepareGraph.getTurnWeight(inEdge, viaNode, outEdge);
     }
 
     static class Params {

@@ -46,7 +46,6 @@ import static com.graphhopper.util.Helper.nf;
 class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final PrepareGraph prepareGraph;
-    private final TurnCostFunction turnCostFunction;
     private final PrepareGraphEdgeExplorer inEdgeExplorer;
     private final PrepareGraphEdgeExplorer outEdgeExplorer;
     private final PrepareGraphEdgeExplorer existingShortcutExplorer;
@@ -78,9 +77,8 @@ class EdgeBasedNodeContractor implements NodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, EdgeBasedShortcutInserter shortcutHandler, TurnCostFunction turnCostFunction, PMap pMap) {
+    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutHandler, PMap pMap) {
         this.prepareGraph = prepareGraph;
-        this.turnCostFunction = turnCostFunction;
         this.shortcutHandler = shortcutHandler;
         this.pMap = pMap;
         extractParams(pMap);
@@ -99,7 +97,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
-        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, turnCostFunction, pMap);
+        witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, pMap);
         hierarchyDepths = new int[prepareGraph.getNodes()];
     }
 
@@ -281,7 +279,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                         iter.getSkipped1(), iter.getSkipped2(), iter.getWeight(), true);
             }
         }
-        shortcutHandler.finishContractingNode();
+        addedShortcutsCount += shortcutHandler.finishContractingNode();
     }
 
     private void countPreviousEdges(int node) {
@@ -310,11 +308,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
         }
     }
 
-    private PrepareCHEntry addShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
+    private PrepareCHEntry addShortcutsToPrepareGraph(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
         if (edgeTo.parent.prepareEdge != edgeFrom.prepareEdge) {
-            // counting origEdgeCount correctly is tricky with loop shortcuts and this recursion, but it probably does
-            // not matter that much
-            PrepareCHEntry prev = addShortcut(edgeFrom, edgeTo.getParent(), origEdgeCount);
+            // counting origEdgeCount correctly is tricky with loop shortcuts and the recursion we use here. so we
+            // simply ignore this, it probably does not matter that much
+            PrepareCHEntry prev = addShortcutsToPrepareGraph(edgeFrom, edgeTo.getParent(), origEdgeCount);
             return doAddShortcut(prev, edgeTo, origEdgeCount);
         } else {
             return doAddShortcut(edgeFrom, edgeTo, origEdgeCount);
@@ -399,7 +397,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
         @Override
         public void handleShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
-            addShortcut(edgeFrom, edgeTo, origEdgeCount);
+            addShortcutsToPrepareGraph(edgeFrom, edgeTo, origEdgeCount);
         }
 
         @Override

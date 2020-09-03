@@ -43,7 +43,7 @@ class NodeBasedWitnessPathSearcherTest {
     @Test
     public void testShortestPathSkipNode() {
         createExampleGraph();
-        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph.getNodes());
         prepareGraph.initFromGraph(graph, weighting);
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
         NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
@@ -64,7 +64,7 @@ class NodeBasedWitnessPathSearcherTest {
     @Test
     public void testShortestPathSkipNode2() {
         createExampleGraph();
-        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph.getNodes());
         prepareGraph.initFromGraph(graph, weighting);
         final double normalDist = new Dijkstra(graph, weighting, TraversalMode.NODE_BASED).calcPath(4, 2).getDistance();
         assertEquals(3, normalDist, 1e-5);
@@ -84,7 +84,7 @@ class NodeBasedWitnessPathSearcherTest {
     @Test
     public void testShortestPathLimit() {
         createExampleGraph();
-        PrepareGraph prepareGraph = new PrepareGraph(graph.getNodes());
+        PrepareGraph prepareGraph = PrepareGraph.nodeBased(graph.getNodes());
         prepareGraph.initFromGraph(graph, weighting);
         NodeBasedWitnessPathSearcher algo = new NodeBasedWitnessPathSearcher(prepareGraph);
 
