@@ -135,8 +135,7 @@ class NodeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcut(iter.getPrepareEdge(), -1, node, iter.getAdjNode(), iter.getSkipped1(), iter.getSkipped2(),
-                        PrepareEncoder.getScFwdDir(), iter.getWeight());
+                shortcutInserter.addOutShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(), iter.getSkipped1(), iter.getSkipped2(), iter.getWeight());
             }
         }
         {
@@ -144,8 +143,7 @@ class NodeBasedNodeContractor implements NodeContractor {
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
-                shortcutInserter.addShortcutWithUpdate(-1, iter.getPrepareEdge(), node, iter.getAdjNode(), iter.getSkipped2(), iter.getSkipped1(),
-                        PrepareEncoder.getScBwdDir(), iter.getWeight());
+                shortcutInserter.addInShortcut(iter.getPrepareEdge(), node, iter.getAdjNode(), iter.getSkipped2(), iter.getSkipped1(), iter.getWeight());
             }
         }
         addedShortcutsCount += shortcutInserter.finishContractingNode();
@@ -295,9 +293,16 @@ class NodeBasedNodeContractor implements NodeContractor {
          */
         void startContractingNode();
 
-        void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
+        /**
+         * This method is called for every shortcut outgoing from the contracted node and found by the contractor
+         */
+        void addOutShortcut(int prepareEdge, int node, int adjNode, int skipped1, int skipped2, double weight);
 
-        void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
+        /**
+         * This method is called for every shortcut incoming to the contracted node and found by the contractor.
+         * Incoming shortcuts are added only *after* all outgoing ones were add.
+         */
+        void addInShortcut(int prepareEdge, int node, int adjNode, int skipped1, int skipped2, double weight);
 
         /**
          * Use this hook for any kind of post-processing after the node is contracted

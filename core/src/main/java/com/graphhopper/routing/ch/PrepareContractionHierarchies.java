@@ -89,11 +89,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             if (turnCostStorage == null) {
                 throw new IllegalArgumentException("For edge-based CH you need a turn cost storage");
             }
-            prepareGraph = PrepareGraph.edgeBased(ghStorage.getNodes(), chConfig.getWeighting()::calcTurnWeight);
+            prepareGraph = PrepareGraph.edgeBased(ghStorage.getNodes(), ghStorage.getEdges(), chConfig.getWeighting()::calcTurnWeight);
             EdgeBasedNodeContractor.ShortcutHandler shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
             nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, pMap);
         } else {
-            prepareGraph = PrepareGraph.nodeBased(ghStorage.getNodes());
+            prepareGraph = PrepareGraph.nodeBased(ghStorage.getNodes(), ghStorage.getEdges());
             NodeBasedNodeContractor.ShortcutHandler shortcutInserter = new NodeBasedShortcutHandler(chGraph);
             nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, pMap);
         }
@@ -169,7 +169,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
         oldPriorities = new float[nodes];
-        prepareGraph.initFromGraph(graph, getWeighting());
+        PrepareGraph.buildFromGraph(prepareGraph, graph, getWeighting());
         nodeContractor.initFromGraph();
     }
 

@@ -25,8 +25,6 @@ public interface PrepareGraphOrigEdgeIterator {
 
     int getAdjNode();
 
-    int getEdge();
-
     int getOrigEdgeKeyFirst();
 
     int getOrigEdgeKeyLast();

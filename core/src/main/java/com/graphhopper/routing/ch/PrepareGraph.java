@@ -24,6 +24,7 @@ import com.graphhopper.routing.ev.BooleanEncodedValue;
 import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
+import com.graphhopper.util.GHUtility;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,51 +34,62 @@ import static java.util.stream.Collectors.toList;
 
 public class PrepareGraph {
     private final int nodes;
-    private int edges;
+    private final int edges;
     private final TurnCostFunction turnCostFunction;
     private final List<List<PrepareEdge>> outEdges;
     private final List<List<PrepareEdge>> inEdges;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
+    private int nextShortcutId;
 
-    public static PrepareGraph nodeBased(int nodes) {
-        return new PrepareGraph(nodes, (in, via, out) -> 0);
+    public static PrepareGraph nodeBased(int nodes, int edges) {
+        return new PrepareGraph(nodes, edges, (in, via, out) -> 0);
     }
 
-    public static PrepareGraph edgeBased(int nodes, TurnCostFunction turnCostFunction) {
-        return new PrepareGraph(nodes, turnCostFunction);
+    public static PrepareGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction) {
+        return new PrepareGraph(nodes, edges, turnCostFunction);
     }
 
-    private PrepareGraph(int nodes, TurnCostFunction turnCostFunction) {
+    /**
+     * @param nodes (fixed) number of nodes of the graph
+     * @param edges the maximum number of (non-shortcut) edges in this graph. edges-1 is the maximum edge id that may
+     *              be used.
+     */
+    private PrepareGraph(int nodes, int edges, TurnCostFunction turnCostFunction) {
         this.turnCostFunction = turnCostFunction;
         this.nodes = nodes;
+        this.edges = edges;
         outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        nextShortcutId = edges;
     }
 
-    public void initFromGraph(Graph graph, Weighting weighting) {
-        if (graph.getNodes() != nodes)
+    public static void buildFromGraph(PrepareGraph prepareGraph, Graph graph, Weighting weighting) {
+        if (graph.getNodes() != prepareGraph.getNodes())
             throw new IllegalArgumentException("Cannot initialize from given graph. The number of nodes does not match: " +
-                    graph.getNodes() + " vs. " + nodes);
-        edges = graph.getEdges();
+                    graph.getNodes() + " vs. " + prepareGraph.getNodes());
+        if (graph.getEdges() != prepareGraph.getOriginalEdges())
+            throw new IllegalArgumentException("Cannot initialize from given graph. The number of edges does not match: " +
+                    graph.getEdges() + " vs. " + prepareGraph.getOriginalEdges());
         BooleanEncodedValue accessEnc = weighting.getFlagEncoder().getAccessEnc();
         AllEdgesIterator iter = graph.getAllEdges();
         while (iter.next()) {
             if (iter.get(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, false);
                 if (Double.isFinite(weight)) {
-                    addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weight);
+                    prepareGraph.addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weight);
                 }
             }
             if (iter.getReverse(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, true);
                 if (Double.isFinite(weight)) {
-                    addEdge(iter.getAdjNode(), iter.getBaseNode(), iter.getEdge(), weight);
+                    prepareGraph.addEdge(iter.getAdjNode(), iter.getBaseNode(), iter.getEdge(), weight);
                 }
             }
         }
+        // todo: performance - maybe sort the edges in some clever way?
     }
 
     public int getNodes() {
@@ -92,21 +104,22 @@ public class PrepareGraph {
         return outEdges.get(node).size() + inEdges.get(node).size();
     }
 
-    public void addEdge(int from, int to, int prepareEdge, double weight) {
-        PrepareEdge prepareEdgeObj = PrepareEdge.edge(prepareEdge, from, to, weight);
+    public void addEdge(int from, int to, int edge, double weight) {
+        PrepareEdge prepareEdgeObj = PrepareEdge.edge(edge, from, to, weight);
         outEdges.get(from).add(prepareEdgeObj);
         inEdges.get(to).add(prepareEdgeObj);
 
-        PrepareOrigEdge edgeObj = new PrepareOrigEdge(prepareEdge, from, to);
+        int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
+        PrepareOrigEdge edgeObj = new PrepareOrigEdge(edgeKey, from, to);
         outOrigEdges.get(from).add(edgeObj);
         inOrigEdges.get(to).add(edgeObj);
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        PrepareEdge prepareEdge = PrepareEdge.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
+        PrepareEdge prepareEdge = PrepareEdge.shortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
-        return edges++;
+        return nextShortcutId++;
     }
 
     public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
@@ -292,16 +305,8 @@ public class PrepareGraph {
         }
 
         @Override
-        public int getEdge() {
-            return edgesAtNode.get(index).edge;
-        }
-
-        @Override
         public int getOrigEdgeKeyFirst() {
-            int e = getEdge() << 1;
-            if (getBaseNode() > getAdjNode())
-                e += 1;
-            return e;
+            return reverse ? GHUtility.reverseEdgeKey(edgesAtNode.get(index).edgeKey) : edgesAtNode.get(index).edgeKey;
         }
 
         @Override
@@ -311,7 +316,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return getEdge() + ": " + getBaseNode() + "-" + getAdjNode();
+            return GHUtility.getEdgeFromEdgeKey(getOrigEdgeKeyFirst()) + ": " + getBaseNode() + "-" + getAdjNode();
         }
     }
 
@@ -361,12 +366,12 @@ public class PrepareGraph {
     }
 
     private static class PrepareOrigEdge {
-        private final int edge;
+        private final int edgeKey;
         private final int baseNode;
         private final int adjNode;
 
-        PrepareOrigEdge(int edge, int baseNode, int adjNode) {
-            this.edge = edge;
+        PrepareOrigEdge(int edgeKey, int baseNode, int adjNode) {
+            this.edgeKey = edgeKey;
             this.baseNode = baseNode;
             this.adjNode = adjNode;
         }

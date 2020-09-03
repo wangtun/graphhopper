@@ -45,12 +45,12 @@ class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandle
     }
 
     @Override
-    public void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
-        shortcuts.add(new Shortcut(prepareEdgeFwd, prepareEdgeBwd, node, adjNode, skipped1, skipped2, flags, weight));
+    public void addOutShortcut(int prepareEdge, int node, int adjNode, int skipped1, int skipped2, double weight) {
+        shortcuts.add(new Shortcut(prepareEdge, -1, node, adjNode, skipped1, skipped2, PrepareEncoder.getScFwdDir(), weight));
     }
 
     @Override
-    public void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+    public void addInShortcut(int prepareEdge, int node, int adjNode, int skipped1, int skipped2, double weight) {
         // we check if this shortcut already exists (with the same weight) for the other direction and if so we can use
         // it for both ways instead of adding another one
         boolean bidir = false;
@@ -59,7 +59,7 @@ class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandle
                 if (getShortcutForPrepareEdge(sc.skippedEdge1) == getShortcutForPrepareEdge(skipped1) && getShortcutForPrepareEdge(sc.skippedEdge2) == getShortcutForPrepareEdge(skipped2)) {
                     if (sc.flags == PrepareEncoder.getScFwdDir()) {
                         sc.flags = PrepareEncoder.getScDirMask();
-                        sc.prepareEdgeBwd = prepareEdgeBwd;
+                        sc.prepareEdgeBwd = prepareEdge;
                         bidir = true;
                         break;
                     }
@@ -67,7 +67,7 @@ class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandle
             }
         }
         if (!bidir) {
-            shortcuts.add(new Shortcut(-1, prepareEdgeBwd, node, adjNode, skipped1, skipped2, flags, weight));
+            shortcuts.add(new Shortcut(-1, prepareEdge, node, adjNode, skipped1, skipped2, PrepareEncoder.getScBwdDir(), weight));
         }
     }
 
