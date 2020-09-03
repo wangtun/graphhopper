@@ -32,6 +32,8 @@ public interface NodeContractor {
 
     /**
      * Adds the required shortcuts for the given node.
+     *
+     * @return the set of nodes adjacent to this node (before contraction)
      */
     IntSet contractNode(int node);
 

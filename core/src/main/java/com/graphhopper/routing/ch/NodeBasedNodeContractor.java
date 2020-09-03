@@ -80,7 +80,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     }
 
     /**
-     * Warning: the calculated priority must NOT depend on priority(v) and therefore handleShortcuts should also not
+     * Warning: the calculated priority must NOT depend on priority(v) and therefore findAndHandleShortcuts should also not
      * depend on the priority(v). Otherwise updating the priority before contracting in contractNodes() could lead to
      * a slowish or even endless loop.
      */
@@ -94,7 +94,7 @@ class NodeBasedNodeContractor implements NodeContractor {
         // originalEdgesCount = σ(v) := sum_{ (u,w) ∈ shortcuts(v) } of r(u, w)
         shortcutsCount = 0;
         originalEdgesCount = 0;
-        handleShortcuts(node, this::countShortcuts);
+        findAndHandleShortcuts(node, this::countShortcuts);
 
         // from shortcuts we can compute the edgeDifference
         // # low influence: with it the shortcut creation is slightly faster
@@ -114,7 +114,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     @Override
     public IntSet contractNode(int node) {
         insertShortcuts(node);
-        long degree = handleShortcuts(node, this::addOrUpdateShortcut);
+        long degree = findAndHandleShortcuts(node, this::addOrUpdateShortcut);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
         meanDegree = (meanDegree * 2 + degree) / 3;
         // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
@@ -167,7 +167,7 @@ class NodeBasedNodeContractor implements NodeContractor {
      * Returns the 'degree' of the given node (disregarding edges from/to already contracted nodes).
      * Note that here the degree is not the total number of adjacent edges, but only the number of incoming edges
      */
-    private long handleShortcuts(int node, PrepareShortcutHandler handler) {
+    private long findAndHandleShortcuts(int node, PrepareShortcutHandler handler) {
         int maxVisitedNodes = getMaxVisitedNodesEstimate();
         long degree = 0;
         PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
@@ -285,15 +285,29 @@ class NodeBasedNodeContractor implements NodeContractor {
         private float originalEdgesCountWeight = 1;
     }
 
+    /**
+     * This handler is called on every shortcut that this contractor finds necessary to add for the contracted node.
+     */
     public interface ShortcutHandler {
+        /**
+         * Use this hook for any kind of initialization to be done before a node is contracted
+         */
         void startContractingNode();
 
         void addShortcut(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
 
         void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight);
 
+        /**
+         * Use this hook for any kind of post-processing after the node is contracted
+         *
+         * @return the actual number of shortcuts that were added to the graph for this node
+         */
         int finishContractingNode();
 
+        /**
+         * This method is called at the very end of the graph contraction (after the last node was contracted)
+         */
         void finishContraction();
     }
 }

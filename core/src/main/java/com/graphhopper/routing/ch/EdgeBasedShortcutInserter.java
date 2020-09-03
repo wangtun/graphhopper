@@ -25,13 +25,16 @@ import com.graphhopper.storage.CHGraph;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EdgeBasedShortcutHandler implements EdgeBasedNodeContractor.ShortcutHandler {
+/**
+ * Shortcut handler that inserts the given shortcuts into a CHGraph
+ */
+public class EdgeBasedShortcutInserter implements EdgeBasedNodeContractor.ShortcutHandler {
     private final CHGraph chGraph;
     private final int origEdges;
     private final List<Shortcut> shortcuts;
     private final IntArrayList shortcutsByPrepareEdges;
 
-    public EdgeBasedShortcutHandler(CHGraph chGraph) {
+    public EdgeBasedShortcutInserter(CHGraph chGraph) {
         this.chGraph = chGraph;
         this.shortcuts = new ArrayList<>();
         this.origEdges = chGraph.getOriginalEdges();
@@ -49,17 +52,22 @@ public class EdgeBasedShortcutHandler implements EdgeBasedNodeContractor.Shortcu
     }
 
     @Override
-    public void finishContractingNode() {
+    public int finishContractingNode() {
+        int shortcutCount = 0;
         for (Shortcut sc : shortcuts) {
             int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
             int scId = chGraph.shortcutEdgeBased(sc.from, sc.to, flags,
                     sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
+            shortcutCount++;
             setShortcutForPrepareEdge(sc.prepareEdge, scId);
         }
+        return shortcutCount;
     }
 
     @Override
     public void finishContraction() {
+        // during contraction the skip1/2 edges of shortcuts refer to the prepare edge-ids *not* the CHGraph (shortcut)
+        // ids (because they are not known before the insertion) -> we need to re-map these ids here
         AllCHEdgesIterator iter = chGraph.getAllEdges();
         while (iter.next()) {
             if (!iter.isShortcut())

@@ -71,11 +71,6 @@ class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandle
         }
     }
 
-    /**
-     * Actually writes the given shortcuts to the graph.
-     *
-     * @return the actual number of shortcuts that were added to the graph
-     */
     @Override
     public int finishContractingNode() {
         int shortcutCount = 0;
