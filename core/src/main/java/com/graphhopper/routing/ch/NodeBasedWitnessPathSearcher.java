@@ -34,7 +34,7 @@ import java.util.Arrays;
  */
 public class NodeBasedWitnessPathSearcher {
     private static final int NOT_FOUND = -1;
-    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    private final PrepareGraphEdgeExplorer outEdgeExplorer;
     private final IntArrayList changedNodes;
     private int maxVisitedNodes = Integer.MAX_VALUE;
     protected double[] weights;
@@ -111,7 +111,7 @@ public class NodeBasedWitnessPathSearcher {
 
         while (true) {
             visitedNodes++;
-            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(currNode);
+            PrepareGraphEdgeIterator iter = outEdgeExplorer.setBaseNode(currNode);
             while (iter.next()) {
                 int adjNode = iter.getAdjNode();
                 if (!accept(iter))
@@ -185,7 +185,7 @@ public class NodeBasedWitnessPathSearcher {
         ignoreNode = node;
     }
 
-    private boolean accept(PrepareGraph.PrepareGraphIterator iter) {
+    private boolean accept(PrepareGraphEdgeIterator iter) {
         return ignoreNode < 0 || iter.getAdjNode() != ignoreNode;
     }
 

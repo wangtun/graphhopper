@@ -47,11 +47,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final PrepareGraph prepareGraph;
     private final TurnCostFunction turnCostFunction;
-    private final PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
-    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private final PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
-    private final PrepareGraph.BaseGraphExplorer sourceNodeOrigInEdgeExplorer;
-    private final PrepareGraph.BaseGraphExplorer targetNodeOrigOutEdgeExplorer;
+    private final PrepareGraphEdgeExplorer inEdgeExplorer;
+    private final PrepareGraphEdgeExplorer outEdgeExplorer;
+    private final PrepareGraphEdgeExplorer existingShortcutExplorer;
+    private final PrepareGraphOrigEdgeExplorer sourceNodeOrigInEdgeExplorer;
+    private final PrepareGraphOrigEdgeExplorer targetNodeOrigOutEdgeExplorer;
     private final PrepareShortcutHandler addingShortcutHandler = new AddingPrepareShortcutHandler();
     private final PrepareShortcutHandler countingShortcutHandler = new CountingPrepareShortcutHandler();
     private final ShortcutHandler shortcutHandler;
@@ -187,7 +187,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
         // first we need to identify the possible source nodes from which we can reach the center node
         sourceNodes.clear();
-        PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
+        PrepareGraphEdgeIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
         while (incomingEdges.next()) {
             int sourceNode = incomingEdges.getAdjNode();
             if (sourceNode == node) {
@@ -198,7 +198,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                 continue;
             }
             // for each source node we need to look at every incoming original edge and find the initial entries
-            PrepareGraph.BaseGraphIterator origInIter = sourceNodeOrigInEdgeExplorer.setBaseNode(sourceNode);
+            PrepareGraphOrigEdgeIterator origInIter = sourceNodeOrigInEdgeExplorer.setBaseNode(sourceNode);
             while (origInIter.next()) {
                 int numInitialEntries = witnessPathSearcher.initSearch(node, sourceNode, GHUtility.getEdgeFromEdgeKey(origInIter.getOrigEdgeKeyLast()));
                 if (numInitialEntries < 1) {
@@ -207,7 +207,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
                 // now we need to identify all target nodes that can be reached from the center node
                 targetNodes.clear();
-                PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
+                PrepareGraphEdgeIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
                 while (outgoingEdges.next()) {
                     int targetNode = outgoingEdges.getAdjNode();
                     if (targetNode == node) {
@@ -219,7 +219,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                     }
                     // for each target edge outgoing from a target node we need to check if reaching it requires
                     // a 'bridge-path'
-                    PrepareGraph.BaseGraphIterator targetEdgeIter = targetNodeOrigOutEdgeExplorer.setBaseNode(targetNode);
+                    PrepareGraphOrigEdgeIterator targetEdgeIter = targetNodeOrigOutEdgeExplorer.setBaseNode(targetNode);
                     while (targetEdgeIter.next()) {
                         dijkstraSW.start();
                         PrepareCHEntry entry = witnessPathSearcher.runSearch(targetNode, GHUtility.getEdgeFromEdgeKey(targetEdgeIter.getOrigEdgeKeyFirst()));
@@ -259,7 +259,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private void insertShortcuts(int node) {
         shortcutHandler.startContractingNode();
         {
-            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
+            PrepareGraphEdgeIterator iter = outEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
@@ -269,7 +269,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             }
         }
         {
-            PrepareGraph.PrepareGraphIterator iter = inEdgeExplorer.setBaseNode(node);
+            PrepareGraphEdgeIterator iter = inEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
@@ -285,13 +285,13 @@ class EdgeBasedNodeContractor implements NodeContractor {
     }
 
     private void countPreviousEdges(int node) {
-        PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(node);
+        PrepareGraphEdgeIterator outIter = outEdgeExplorer.setBaseNode(node);
         while (outIter.next()) {
             numPrevEdges++;
             numPrevOrigEdges += outIter.getOrigEdgeCount();
         }
 
-        PrepareGraph.PrepareGraphIterator inIter = inEdgeExplorer.setBaseNode(node);
+        PrepareGraphEdgeIterator inIter = inEdgeExplorer.setBaseNode(node);
         while (inIter.next()) {
             // do not consider loop edges a second time
             if (inIter.getBaseNode() == inIter.getAdjNode())
@@ -325,7 +325,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         int from = edgeFrom.parent.adjNode;
         int adjNode = edgeTo.adjNode;
 
-        final PrepareGraph.PrepareGraphIterator iter = existingShortcutExplorer.setBaseNode(from);
+        final PrepareGraphEdgeIterator iter = existingShortcutExplorer.setBaseNode(from);
         while (iter.next()) {
             if (!isSameShortcut(iter, adjNode, edgeFrom.getParent().incEdgeKey, edgeTo.incEdgeKey)) {
                 // this is some other (shortcut) edge -> we do not care
@@ -362,7 +362,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         return entry;
     }
 
-    private boolean isSameShortcut(PrepareGraph.PrepareGraphIterator iter, int adjNode, int firstOrigEdgeKey, int lastOrigEdgeKey) {
+    private boolean isSameShortcut(PrepareGraphEdgeIterator iter, int adjNode, int firstOrigEdgeKey, int lastOrigEdgeKey) {
         return iter.isShortcut()
                 && (iter.getAdjNode() == adjNode)
                 && (iter.getOrigEdgeKeyFirst() == firstOrigEdgeKey)
@@ -424,7 +424,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             int lastOrigEdgeKey = edgeTo.incEdgeKey;
 
             // check if this shortcut already exists
-            final PrepareGraph.PrepareGraphIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
+            final PrepareGraphEdgeIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
             while (iter.next()) {
                 if (isSameShortcut(iter, toNode, firstOrigEdgeKey, lastOrigEdgeKey)) {
                     // this shortcut exists already, maybe its weight will be updated but we should not count it as

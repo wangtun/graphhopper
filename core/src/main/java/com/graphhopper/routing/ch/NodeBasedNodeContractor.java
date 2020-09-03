@@ -29,9 +29,9 @@ import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor implements NodeContractor {
     private final PrepareGraph prepareGraph;
-    private final PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
-    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private final PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
+    private final PrepareGraphEdgeExplorer inEdgeExplorer;
+    private final PrepareGraphEdgeExplorer outEdgeExplorer;
+    private final PrepareGraphEdgeExplorer existingShortcutExplorer;
     private final ShortcutHandler shortcutInserter;
     private final Params params = new Params();
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
@@ -130,7 +130,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private void insertShortcuts(int node) {
         shortcutInserter.startContractingNode();
         {
-            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
+            PrepareGraphEdgeIterator iter = outEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
@@ -139,7 +139,7 @@ class NodeBasedNodeContractor implements NodeContractor {
             }
         }
         {
-            PrepareGraph.PrepareGraphIterator iter = inEdgeExplorer.setBaseNode(node);
+            PrepareGraphEdgeIterator iter = inEdgeExplorer.setBaseNode(node);
             while (iter.next()) {
                 if (!iter.isShortcut())
                     continue;
@@ -170,7 +170,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private long findAndHandleShortcuts(int node, PrepareShortcutHandler handler) {
         int maxVisitedNodes = getMaxVisitedNodesEstimate();
         long degree = 0;
-        PrepareGraph.PrepareGraphIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
+        PrepareGraphEdgeIterator incomingEdges = inEdgeExplorer.setBaseNode(node);
         // collect outgoing nodes (goal-nodes) only once
         while (incomingEdges.next()) {
             int fromNode = incomingEdges.getAdjNode();
@@ -184,7 +184,7 @@ class NodeBasedNodeContractor implements NodeContractor {
                 continue;
             }
             // collect outgoing nodes (goal-nodes) only once
-            PrepareGraph.PrepareGraphIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
+            PrepareGraphEdgeIterator outgoingEdges = outEdgeExplorer.setBaseNode(node);
             // force fresh maps etc as this cannot be determined by from node alone (e.g. same from node but different avoidNode)
             witnessPathSearcher.clear();
             degree++;
@@ -234,7 +234,7 @@ class NodeBasedNodeContractor implements NodeContractor {
                                      int outgoingEdge, int outOrigEdgeCount,
                                      int incomingEdge, int inOrigEdgeCount) {
         boolean exists = false;
-        PrepareGraph.PrepareGraphIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
+        PrepareGraphEdgeIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
         while (iter.next()) {
             // do not update base edges!
             if (iter.getAdjNode() != toNode || !iter.isShortcut()) {

@@ -102,20 +102,20 @@ public class PrepareGraph {
         return edges++;
     }
 
-    public PrepareGraphExplorer createOutEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(outEdges, false);
+    public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
+        return new PrepareGraphEdgeExplorerImpl(outEdges, false);
     }
 
-    public PrepareGraphExplorer createInEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(inEdges, true);
+    public PrepareGraphEdgeExplorer createInEdgeExplorer() {
+        return new PrepareGraphEdgeExplorerImpl(inEdges, true);
     }
 
-    public BaseGraphExplorer createBaseOutEdgeExplorer() {
-        return new BaseGraphExplorerImpl(outOrigEdges, false);
+    public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
+        return new PrepareGraphOrigEdgeExplorerImpl(outOrigEdges, false);
     }
 
-    public BaseGraphExplorer createBaseInEdgeExplorer() {
-        return new BaseGraphExplorerImpl(inOrigEdges, true);
+    public PrepareGraphOrigEdgeExplorer createBaseInEdgeExplorer() {
+        return new PrepareGraphOrigEdgeExplorerImpl(inOrigEdges, true);
     }
 
     public IntSet disconnect(int node) {
@@ -137,53 +137,19 @@ public class PrepareGraph {
         return neighbors;
     }
 
-    public interface PrepareGraphExplorer {
-        PrepareGraphIterator setBaseNode(int node);
-    }
-
-    public interface PrepareGraphIterator {
-        boolean next();
-
-        int getBaseNode();
-
-        int getAdjNode();
-
-        int getPrepareEdge();
-
-        boolean isShortcut();
-
-        int getOrigEdgeKeyFirst();
-
-        int getOrigEdgeKeyLast();
-
-        int getSkipped1();
-
-        int getSkipped2();
-
-        double getWeight();
-
-        int getOrigEdgeCount();
-
-        void setSkippedEdges(int skipped1, int skipped2);
-
-        void setWeight(double weight);
-
-        void setOrigEdgeCount(int origEdgeCount);
-    }
-
-    public static class PrepareGraphExplorerImpl implements PrepareGraphExplorer, PrepareGraphIterator {
+    public static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
         private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
         private List<PrepareEdge> prepareEdgesAtNode;
         private int index;
 
-        PrepareGraphExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
+        PrepareGraphEdgeExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
             this.prepareEdges = prepareEdges;
             this.reverse = reverse;
         }
 
         @Override
-        public PrepareGraphIterator setBaseNode(int node) {
+        public PrepareGraphEdgeIterator setBaseNode(int node) {
             this.prepareEdgesAtNode = prepareEdges.get(node);
             this.index = -1;
             return this;
@@ -268,38 +234,19 @@ public class PrepareGraph {
         }
     }
 
-
-    public interface BaseGraphExplorer {
-        BaseGraphIterator setBaseNode(int node);
-    }
-
-    public interface BaseGraphIterator {
-        boolean next();
-
-        int getBaseNode();
-
-        int getAdjNode();
-
-        int getEdge();
-
-        int getOrigEdgeKeyFirst();
-
-        int getOrigEdgeKeyLast();
-    }
-
-    public static class BaseGraphExplorerImpl implements BaseGraphExplorer, BaseGraphIterator {
+    private static class PrepareGraphOrigEdgeExplorerImpl implements PrepareGraphOrigEdgeExplorer, PrepareGraphOrigEdgeIterator {
         private final List<List<PrepareOrigEdge>> edges;
         private final boolean reverse;
         private List<PrepareOrigEdge> edgesAtNode;
         private int index;
 
-        BaseGraphExplorerImpl(List<List<PrepareOrigEdge>> edges, boolean reverse) {
+        PrepareGraphOrigEdgeExplorerImpl(List<List<PrepareOrigEdge>> edges, boolean reverse) {
             this.edges = edges;
             this.reverse = reverse;
         }
 
         @Override
-        public BaseGraphIterator setBaseNode(int node) {
+        public PrepareGraphOrigEdgeIterator setBaseNode(int node) {
             this.edgesAtNode = edges.get(node);
             this.index = -1;
             return this;
@@ -345,20 +292,7 @@ public class PrepareGraph {
         }
     }
 
-
-    public static class PrepareOrigEdge {
-        private final int edge;
-        private final int baseNode;
-        private final int adjNode;
-
-        public PrepareOrigEdge(int edge, int baseNode, int adjNode) {
-            this.edge = edge;
-            this.baseNode = baseNode;
-            this.adjNode = adjNode;
-        }
-    }
-
-    public static class PrepareEdge {
+    private static class PrepareEdge {
         private final int prepareEdge;
         private final int from;
         private final int to;
@@ -393,13 +327,25 @@ public class PrepareGraph {
             this.origEdgeCount = origEdgeCount;
         }
 
-        public boolean isShortcut() {
+        boolean isShortcut() {
             return skipped1 != -1;
         }
 
         @Override
         public String toString() {
             return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
+        }
+    }
+
+    private static class PrepareOrigEdge {
+        private final int edge;
+        private final int baseNode;
+        private final int adjNode;
+
+        public PrepareOrigEdge(int edge, int baseNode, int adjNode) {
+            this.edge = edge;
+            this.baseNode = baseNode;
+            this.adjNode = adjNode;
         }
     }
 }

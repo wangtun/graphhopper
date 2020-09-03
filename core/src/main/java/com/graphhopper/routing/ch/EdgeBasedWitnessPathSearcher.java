@@ -65,8 +65,8 @@ public class EdgeBasedWitnessPathSearcher {
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
     private final TurnCostFunction turnCostFunction;
-    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private final PrepareGraph.BaseGraphExplorer origInEdgeExplorer;
+    private final PrepareGraphEdgeExplorer outEdgeExplorer;
+    private final PrepareGraphOrigEdgeExplorer origInEdgeExplorer;
 
     // general parameters affecting the number of found witnesses and the search time
     private final Params params = new Params();
@@ -169,7 +169,7 @@ public class EdgeBasedWitnessPathSearcher {
         bestPathIsBridgePath = false;
 
         // check if we can already reach the target from the shortest path tree we discovered so far
-        PrepareGraph.BaseGraphIterator inIter = origInEdgeExplorer.setBaseNode(targetNode);
+        PrepareGraphOrigEdgeIterator inIter = origInEdgeExplorer.setBaseNode(targetNode);
         while (inIter.next()) {
             final int edgeKey = GHUtility.reverseEdgeKey(inIter.getOrigEdgeKeyLast());
             if (EdgeIterator.Edge.isValid(prepareEdges[edgeKey])) {
@@ -213,7 +213,7 @@ public class EdgeBasedWitnessPathSearcher {
             }
 
             final int fromNode = adjNodes[currKey];
-            PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(fromNode);
+            PrepareGraphEdgeIterator iter = outEdgeExplorer.setBaseNode(fromNode);
             while (iter.next()) {
                 double edgeWeight = iter.getWeight() + calcTurnWeight(GHUtility.getEdgeFromEdgeKey(currKey),
                         iter.getBaseNode(), GHUtility.getEdgeFromEdgeKey(iter.getOrigEdgeKeyFirst()));
@@ -320,7 +320,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private void setInitialEntries(int sourceNode, int sourceEdge, int centerNode) {
-        PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(sourceNode);
+        PrepareGraphEdgeIterator outIter = outEdgeExplorer.setBaseNode(sourceNode);
         while (outIter.next()) {
             double turnWeight = calcTurnWeight(sourceEdge, sourceNode, GHUtility.getEdgeFromEdgeKey(outIter.getOrigEdgeKeyFirst()));
             if (isInfinite(turnWeight)) {
@@ -417,7 +417,7 @@ public class EdgeBasedWitnessPathSearcher {
         }
     }
 
-    private void setEntry(int key, PrepareGraph.PrepareGraphIterator edge, double weight, int parent, boolean isPathToCenter) {
+    private void setEntry(int key, PrepareGraphEdgeIterator edge, double weight, int parent, boolean isPathToCenter) {
         prepareEdges[key] = edge.getPrepareEdge();
         adjNodes[key] = edge.getAdjNode();
         weights[key] = weight;
@@ -428,7 +428,7 @@ public class EdgeBasedWitnessPathSearcher {
         }
     }
 
-    private void updateEntry(int key, PrepareGraph.PrepareGraphIterator edge, double weight, int currKey, boolean isPathToCenter) {
+    private void updateEntry(int key, PrepareGraphEdgeIterator edge, double weight, int currKey, boolean isPathToCenter) {
         prepareEdges[key] = edge.getPrepareEdge();
         weights[key] = weight;
         parents[key] = currKey;
