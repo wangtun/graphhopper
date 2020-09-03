@@ -77,6 +77,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     @Override
     public void close() {
         witnessPathSearcher.close();
+        prepareGraph.close();
     }
 
     /**

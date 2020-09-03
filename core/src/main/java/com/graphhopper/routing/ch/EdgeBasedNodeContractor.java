@@ -51,17 +51,18 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private final PrepareGraphEdgeExplorer existingShortcutExplorer;
     private final PrepareGraphOrigEdgeExplorer sourceNodeOrigInEdgeExplorer;
     private final PrepareGraphOrigEdgeExplorer targetNodeOrigOutEdgeExplorer;
-    private final PrepareShortcutHandler addingShortcutHandler = new AddingPrepareShortcutHandler();
-    private final PrepareShortcutHandler countingShortcutHandler = new CountingPrepareShortcutHandler();
     private final ShortcutHandler shortcutHandler;
     private final Params params = new Params();
     private final PMap pMap;
-    private PrepareShortcutHandler activeShortcutHandler;
     private final StopWatch dijkstraSW = new StopWatch();
     // temporary data used during node contraction
     private final IntSet sourceNodes = new IntHashSet(10);
     private final IntSet targetNodes = new IntHashSet(10);
     private final LongSet addedShortcuts = new LongHashSet();
+    private final Stats addingStats = new Stats();
+    private final Stats countingStats = new Stats();
+    private Stats activeStats;
+
     private int[] hierarchyDepths;
     private EdgeBasedWitnessPathSearcher witnessPathSearcher;
 
@@ -108,9 +109,9 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public float calculatePriority(int node) {
-        activeShortcutHandler = countingShortcutHandler;
+        activeStats = countingStats;
         stats().stopWatch.start();
-        findAndHandlePrepareShortcuts(node);
+        findAndHandlePrepareShortcuts(node, this::countShortcuts);
         stats().stopWatch.stop();
         countPreviousEdges(node);
         // the higher the priority the later (!) this node will be contracted
@@ -131,9 +132,9 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public IntSet contractNode(int node) {
-        activeShortcutHandler = addingShortcutHandler;
+        activeStats = addingStats;
         stats().stopWatch.start();
-        findAndHandlePrepareShortcuts(node);
+        findAndHandlePrepareShortcuts(node, this::addShortcutsToPrepareGraph);
         insertShortcuts(node);
         // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
         // even though this is not optimal from a speed performance point of view.
@@ -165,10 +166,8 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public String getStatisticsString() {
-        String result =
-                "sc-handler-count: " + countingShortcutHandler.getStats() + ", " +
-                        "sc-handler-contract: " + addingShortcutHandler.getStats() + ", " +
-                        witnessPathSearcher.getStatisticsString();
+        String result = "sc-handler-count: " + countingStats + ", sc-handler-contract: " + addingStats + ", " +
+                witnessPathSearcher.getStatisticsString();
         witnessPathSearcher.resetStats();
         return result;
     }
@@ -177,7 +176,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
         return numPolledEdges;
     }
 
-    private void findAndHandlePrepareShortcuts(int node) {
+    /**
+     * This method performs witness searches between all nodes adjacent to the given node and calls the
+     * given handler for all required shortcuts.
+     */
+    private void findAndHandlePrepareShortcuts(int node, PrepareShortcutHandler shortcutHandler) {
         numPolledEdges = 0;
         stats().nodes++;
         resetEdgeCounters();
@@ -241,7 +244,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
                         LOGGER.trace("Adding shortcuts for target entry {}", entry);
                         // todo: re-implement loop-avoidance heuristic as it existed in GH 1.0? it did not work the
                         // way it was implemented so it was removed.
-                        activeShortcutHandler.handleShortcut(root, entry, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
+                        shortcutHandler.handleShortcut(root, entry, incomingEdges.getOrigEdgeCount() + outgoingEdges.getOrigEdgeCount());
                     }
                 }
                 numPolledEdges += witnessPathSearcher.getNumPolledEdges();
@@ -283,6 +286,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
     }
 
     private void countPreviousEdges(int node) {
+        // todo: this edge counting can probably be simplified, but we might need to re-optimize heuristic parameters then
         PrepareGraphEdgeIterator outIter = outEdgeExplorer.setBaseNode(node);
         while (outIter.next()) {
             numPrevEdges++;
@@ -377,74 +381,41 @@ class EdgeBasedNodeContractor implements NodeContractor {
     @Override
     public void close() {
         witnessPathSearcher.close();
+        prepareGraph.close();
+        sourceNodes.release();
+        targetNodes.release();
+        addedShortcuts.release();
+        hierarchyDepths = null;
     }
 
     private Stats stats() {
-        return activeShortcutHandler.getStats();
+        return activeStats;
     }
 
+    @FunctionalInterface
     private interface PrepareShortcutHandler {
-
         void handleShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount);
-
-        Stats getStats();
-
-        String getAction();
     }
 
-    private class AddingPrepareShortcutHandler implements PrepareShortcutHandler {
-        private final Stats stats = new Stats();
+    private void countShortcuts(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
+        int fromNode = edgeFrom.parent.adjNode;
+        int toNode = edgeTo.adjNode;
+        int firstOrigEdgeKey = edgeFrom.getParent().incEdgeKey;
+        int lastOrigEdgeKey = edgeTo.incEdgeKey;
 
-        @Override
-        public void handleShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
-            addShortcutsToPrepareGraph(edgeFrom, edgeTo, origEdgeCount);
-        }
-
-        @Override
-        public Stats getStats() {
-            return stats;
-        }
-
-        @Override
-        public String getAction() {
-            return "add";
-        }
-    }
-
-    private class CountingPrepareShortcutHandler implements PrepareShortcutHandler {
-        private final Stats stats = new Stats();
-
-        @Override
-        public void handleShortcut(PrepareCHEntry edgeFrom, PrepareCHEntry edgeTo, int origEdgeCount) {
-            int fromNode = edgeFrom.parent.adjNode;
-            int toNode = edgeTo.adjNode;
-            int firstOrigEdgeKey = edgeFrom.getParent().incEdgeKey;
-            int lastOrigEdgeKey = edgeTo.incEdgeKey;
-
-            // check if this shortcut already exists
-            final PrepareGraphEdgeIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
-            while (iter.next()) {
-                if (isSameShortcut(iter, toNode, firstOrigEdgeKey, lastOrigEdgeKey)) {
-                    // this shortcut exists already, maybe its weight will be updated but we should not count it as
-                    // a new edge
-                    return;
-                }
+        // check if this shortcut already exists
+        final PrepareGraphEdgeIterator iter = existingShortcutExplorer.setBaseNode(fromNode);
+        while (iter.next()) {
+            if (isSameShortcut(iter, toNode, firstOrigEdgeKey, lastOrigEdgeKey)) {
+                // this shortcut exists already, maybe its weight will be updated but we should not count it as
+                // a new edge
+                return;
             }
-
-            // this shortcut is new --> increase counts
-            numShortcuts++;
-            numOrigEdges += origEdgeCount;
         }
 
-        @Override
-        public Stats getStats() {
-            return stats;
-        }
-
-        @Override
-        public String getAction() {
-            return "count";
-        }
+        // this shortcut is new --> increase counts
+        numShortcuts++;
+        numOrigEdges += origEdgeCount;
     }
 
     public static class Params {

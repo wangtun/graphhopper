@@ -78,9 +78,6 @@ public class PrepareGraph {
                 }
             }
         }
-        // todonow:
-//        outEdges.forEach(Collections::reverse);
-//        inEdges.forEach(Collections::reverse);
     }
 
     public int getNodes() {
@@ -149,6 +146,13 @@ public class PrepareGraph {
         outEdges.get(node).clear();
         inEdges.get(node).clear();
         return neighbors;
+    }
+
+    public void close() {
+        outEdges.clear();
+        inEdges.clear();
+        outOrigEdges.clear();
+        inOrigEdges.clear();
     }
 
     @FunctionalInterface
@@ -361,7 +365,7 @@ public class PrepareGraph {
         private final int baseNode;
         private final int adjNode;
 
-        public PrepareOrigEdge(int edge, int baseNode, int adjNode) {
+        PrepareOrigEdge(int edge, int baseNode, int adjNode) {
             this.edge = edge;
             this.baseNode = baseNode;
             this.adjNode = adjNode;
