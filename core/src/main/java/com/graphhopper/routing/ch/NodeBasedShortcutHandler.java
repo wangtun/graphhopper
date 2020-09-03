@@ -51,12 +51,12 @@ class NodeBasedShortcutHandler implements NodeBasedNodeContractor.ShortcutHandle
 
     @Override
     public void addShortcutWithUpdate(int prepareEdgeFwd, int prepareEdgeBwd, int node, int adjNode, int skipped1, int skipped2, int flags, double weight) {
+        // we check if this shortcut already exists (with the same weight) for the other direction and if so we can use
+        // it for both ways instead of adding another one
         boolean bidir = false;
         for (Shortcut sc : shortcuts) {
             if (sc.to == adjNode && Double.doubleToLongBits(sc.weight) == Double.doubleToLongBits(weight)) {
                 if (getShortcutForPrepareEdge(sc.skippedEdge1) == getShortcutForPrepareEdge(skipped1) && getShortcutForPrepareEdge(sc.skippedEdge2) == getShortcutForPrepareEdge(skipped2)) {
-                    // we already added this shortcut for the other direction so we can use it for both ways instead of
-                    // adding another one
                     if (sc.flags == PrepareEncoder.getScFwdDir()) {
                         sc.flags = PrepareEncoder.getScDirMask();
                         sc.prepareEdgeBwd = prepareEdgeBwd;

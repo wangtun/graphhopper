@@ -29,9 +29,9 @@ import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor implements NodeContractor {
     private final PrepareGraph prepareGraph;
-    private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
-    private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
+    private final PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
+    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    private final PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
     private final ShortcutHandler shortcutInserter;
     private final Params params = new Params();
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
@@ -47,6 +47,9 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     NodeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutInserter, PMap pMap) {
         this.prepareGraph = prepareGraph;
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
     }
@@ -58,10 +61,6 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
-        // todonow: do we really need this initFromGaph?
-        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         witnessPathSearcher = new NodeBasedWitnessPathSearcher(prepareGraph);
     }
 
@@ -95,7 +94,7 @@ class NodeBasedNodeContractor implements NodeContractor {
         // originalEdgesCount = σ(v) := sum_{ (u,w) ∈ shortcuts(v) } of r(u, w)
         shortcutsCount = 0;
         originalEdgesCount = 0;
-        handleShortcuts(node, this::countShortcut);
+        handleShortcuts(node, this::countShortcuts);
 
         // from shortcuts we can compute the edgeDifference
         // # low influence: with it the shortcut creation is slightly faster
@@ -112,12 +111,23 @@ class NodeBasedNodeContractor implements NodeContractor {
         //       maybe use hierarchy-depths heuristic as in edge-based?
     }
 
-    public void finishContraction() {
-        shortcutInserter.finishContraction();
-    }
-
     @Override
     public IntSet contractNode(int node) {
+        insertShortcuts(node);
+        long degree = handleShortcuts(node, this::addOrUpdateShortcut);
+        // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
+        meanDegree = (meanDegree * 2 + degree) / 3;
+        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
+        // even though this is not optimal from a speed performance point of view.
+        return prepareGraph.disconnect(node);
+    }
+
+    /**
+     * Calls the shortcut handler for all edges and shortcuts adjacent to the given node. After this method is called
+     * these edges and shortcuts will be removed from the prepare graph, so this method offers the last chance to deal
+     * with them.
+     */
+    private void insertShortcuts(int node) {
         shortcutInserter.startContractingNode();
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
@@ -138,12 +148,11 @@ class NodeBasedNodeContractor implements NodeContractor {
             }
         }
         addedShortcutsCount += shortcutInserter.finishContractingNode();
-        long degree = handleShortcuts(node, this::addOrUpdateShortcut);
-        // put weight factor on meanDegree instead of taking the average => meanDegree is more stable
-        meanDegree = (meanDegree * 2 + degree) / 3;
-        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
-        // even though this is not optimal from a speed performance point of view.
-        return prepareGraph.disconnect(node);
+    }
+
+    @Override
+    public void finishContraction() {
+        shortcutInserter.finishContraction();
     }
 
     @Override
@@ -214,9 +223,9 @@ class NodeBasedNodeContractor implements NodeContractor {
         return degree;
     }
 
-    private void countShortcut(int fromNode, int toNode, double existingDirectWeight,
-                               int outgoingEdge, int outOrigEdgeCount,
-                               int incomingEdge, int inOrigEdgeCount) {
+    private void countShortcuts(int fromNode, int toNode, double existingDirectWeight,
+                                int outgoingEdge, int outOrigEdgeCount,
+                                int incomingEdge, int inOrigEdgeCount) {
         shortcutsCount++;
         originalEdgesCount += inOrigEdgeCount + outOrigEdgeCount;
     }

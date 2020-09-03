@@ -34,17 +34,17 @@ import static java.util.stream.Collectors.toList;
 public class PrepareGraph {
     private final int nodes;
     private int edges;
-    private final List<List<PrepareEdge>> outArcs;
-    private final List<List<PrepareEdge>> inArcs;
-    private final List<List<Edge>> outEdges;
-    private final List<List<Edge>> inEdges;
+    private final List<List<PrepareEdge>> outEdges;
+    private final List<List<PrepareEdge>> inEdges;
+    private final List<List<PrepareOrigEdge>> outOrigEdges;
+    private final List<List<PrepareOrigEdge>> inOrigEdges;
 
     public PrepareGraph(int nodes) {
         this.nodes = nodes;
-        outArcs = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inArcs = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        outEdges = IntStream.range(0, nodes).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inEdges = IntStream.range(0, nodes).<List<Edge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
     }
 
     public void initFromGraph(Graph graph, Weighting weighting) {
@@ -82,58 +82,58 @@ public class PrepareGraph {
     }
 
     public int getDegree(int node) {
-        return outArcs.get(node).size() + inArcs.get(node).size();
+        return outEdges.get(node).size() + inEdges.get(node).size();
     }
 
     public void addEdge(int from, int to, int prepareEdge, double weight) {
         PrepareEdge prepareEdgeObj = PrepareEdge.edge(prepareEdge, from, to, weight);
-        outArcs.get(from).add(prepareEdgeObj);
-        inArcs.get(to).add(prepareEdgeObj);
+        outEdges.get(from).add(prepareEdgeObj);
+        inEdges.get(to).add(prepareEdgeObj);
 
-        Edge edgeObj = new Edge(prepareEdge, from, to);
-        outEdges.get(from).add(edgeObj);
-        inEdges.get(to).add(edgeObj);
+        PrepareOrigEdge edgeObj = new PrepareOrigEdge(prepareEdge, from, to);
+        outOrigEdges.get(from).add(edgeObj);
+        inOrigEdges.get(to).add(edgeObj);
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
         PrepareEdge prepareEdge = PrepareEdge.shortcut(edges, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
-        outArcs.get(from).add(prepareEdge);
-        inArcs.get(to).add(prepareEdge);
+        outEdges.get(from).add(prepareEdge);
+        inEdges.get(to).add(prepareEdge);
         return edges++;
     }
 
     public PrepareGraphExplorer createOutEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(outArcs, false);
+        return new PrepareGraphExplorerImpl(outEdges, false);
     }
 
     public PrepareGraphExplorer createInEdgeExplorer() {
-        return new PrepareGraphExplorerImpl(inArcs, true);
+        return new PrepareGraphExplorerImpl(inEdges, true);
     }
 
     public BaseGraphExplorer createBaseOutEdgeExplorer() {
-        return new BaseGraphExplorerImpl(outEdges, false);
+        return new BaseGraphExplorerImpl(outOrigEdges, false);
     }
 
     public BaseGraphExplorer createBaseInEdgeExplorer() {
-        return new BaseGraphExplorerImpl(inEdges, true);
+        return new BaseGraphExplorerImpl(inOrigEdges, true);
     }
 
     public IntSet disconnect(int node) {
         IntSet neighbors = new IntHashSet(getDegree(node));
-        for (PrepareEdge prepareEdge : outArcs.get(node)) {
+        for (PrepareEdge prepareEdge : outEdges.get(node)) {
             if (prepareEdge.to == node)
                 continue;
-            inArcs.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
+            inEdges.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
             neighbors.add(prepareEdge.to);
         }
-        for (PrepareEdge prepareEdge : inArcs.get(node)) {
+        for (PrepareEdge prepareEdge : inEdges.get(node)) {
             if (prepareEdge.from == node)
                 continue;
-            outArcs.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
+            outEdges.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
             neighbors.add(prepareEdge.from);
         }
-        outArcs.get(node).clear();
-        inArcs.get(node).clear();
+        outEdges.get(node).clear();
+        inEdges.get(node).clear();
         return neighbors;
     }
 
@@ -288,12 +288,12 @@ public class PrepareGraph {
     }
 
     public static class BaseGraphExplorerImpl implements BaseGraphExplorer, BaseGraphIterator {
-        private final List<List<Edge>> edges;
+        private final List<List<PrepareOrigEdge>> edges;
         private final boolean reverse;
-        private List<Edge> edgesAtNode;
+        private List<PrepareOrigEdge> edgesAtNode;
         private int index;
 
-        BaseGraphExplorerImpl(List<List<Edge>> edges, boolean reverse) {
+        BaseGraphExplorerImpl(List<List<PrepareOrigEdge>> edges, boolean reverse) {
             this.edges = edges;
             this.reverse = reverse;
         }
@@ -346,12 +346,12 @@ public class PrepareGraph {
     }
 
 
-    public static class Edge {
+    public static class PrepareOrigEdge {
         private final int edge;
         private final int baseNode;
         private final int adjNode;
 
-        public Edge(int edge, int baseNode, int adjNode) {
+        public PrepareOrigEdge(int edge, int baseNode, int adjNode) {
             this.edge = edge;
             this.baseNode = baseNode;
             this.adjNode = adjNode;

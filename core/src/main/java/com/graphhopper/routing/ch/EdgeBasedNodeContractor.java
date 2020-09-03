@@ -47,9 +47,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final PrepareGraph prepareGraph;
     private final TurnCostFunction turnCostFunction;
-    private PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
-    private PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
-    private PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
+    private final PrepareGraph.PrepareGraphExplorer inEdgeExplorer;
+    private final PrepareGraph.PrepareGraphExplorer outEdgeExplorer;
+    private final PrepareGraph.PrepareGraphExplorer existingShortcutExplorer;
+    private final PrepareGraph.BaseGraphExplorer sourceNodeOrigInEdgeExplorer;
+    private final PrepareGraph.BaseGraphExplorer targetNodeOrigOutEdgeExplorer;
     private final PrepareShortcutHandler addingShortcutHandler = new AddingPrepareShortcutHandler();
     private final PrepareShortcutHandler countingShortcutHandler = new CountingPrepareShortcutHandler();
     private final ShortcutHandler shortcutHandler;
@@ -60,8 +62,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
     private final SearchStrategy activeStrategy = new AggressiveStrategy();
     private int[] hierarchyDepths;
     private EdgeBasedWitnessPathSearcher witnessPathSearcher;
-    private PrepareGraph.BaseGraphExplorer sourceNodeOrigInEdgeExplorer;
-    private PrepareGraph.BaseGraphExplorer targetNodeOrigOutEdgeExplorer;
     private PrepareGraph.BaseGraphExplorer loopAvoidanceInEdgeExplorer;
     private PrepareGraph.BaseGraphExplorer loopAvoidanceOutEdgeExplorer;
 
@@ -83,6 +83,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
         this.shortcutHandler = shortcutHandler;
         this.pMap = pMap;
         extractParams(pMap);
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
+        sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
+        targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
     }
 
     private void extractParams(PMap pMap) {
@@ -93,12 +98,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
-        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, turnCostFunction, pMap);
-        sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
-        targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
         loopAvoidanceInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
         loopAvoidanceOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
         hierarchyDepths = new int[prepareGraph.getNodes()];
@@ -107,11 +107,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
     @Override
     public void prepareContraction() {
         // not needed
-    }
-
-    @Override
-    public void finishContraction() {
-        shortcutHandler.finishContraction();
     }
 
     @Override
@@ -142,6 +137,16 @@ class EdgeBasedNodeContractor implements NodeContractor {
         activeShortcutHandler = addingShortcutHandler;
         stats().stopWatch.start();
         findAndHandleShortcuts(node);
+        insertShortcuts(node);
+        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
+        // even though this is not optimal from a speed performance point of view.
+        IntSet neighbors = prepareGraph.disconnect(node);
+        updateHierarchyDepthsOfNeighbors(node, neighbors);
+        stats().stopWatch.stop();
+        return neighbors;
+    }
+
+    private void insertShortcuts(int node) {
         shortcutHandler.startContractingNode();
         {
             PrepareGraph.PrepareGraphIterator iter = outEdgeExplorer.setBaseNode(node);
@@ -167,12 +172,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
             }
         }
         shortcutHandler.finishContractingNode();
-        // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
-        // even though this is not optimal from a speed performance point of view.
-        IntSet neighbors = prepareGraph.disconnect(node);
-        updateHierarchyDepthsOfNeighbors(node, neighbors);
-        stats().stopWatch.stop();
-        return neighbors;
+    }
+
+    @Override
+    public void finishContraction() {
+        shortcutHandler.finishContraction();
     }
 
     @Override
@@ -213,11 +217,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         PrepareGraph.PrepareGraphIterator outIter = outEdgeExplorer.setBaseNode(node);
         while (outIter.next()) {
             numPrevEdges++;
-            if (!outIter.isShortcut()) {
-                numPrevOrigEdges++;
-            } else {
-                numPrevOrigEdges += outIter.getOrigEdgeCount();
-            }
+            numPrevOrigEdges += outIter.getOrigEdgeCount();
         }
 
         PrepareGraph.PrepareGraphIterator inIter = inEdgeExplorer.setBaseNode(node);
@@ -226,11 +226,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
             if (inIter.getBaseNode() == inIter.getAdjNode())
                 continue;
             numPrevEdges++;
-            if (!inIter.isShortcut()) {
-                numPrevOrigEdges++;
-            } else {
-                numPrevOrigEdges += inIter.getOrigEdgeCount();
-            }
+            numPrevOrigEdges += inIter.getOrigEdgeCount();
         }
     }
 
