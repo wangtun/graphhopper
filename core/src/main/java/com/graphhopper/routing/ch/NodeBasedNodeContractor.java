@@ -17,7 +17,7 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.IntContainer;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.StopWatch;
 
@@ -113,7 +113,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     }
 
     @Override
-    public IntSet contractNode(int node) {
+    public IntContainer contractNode(int node) {
         long degree = findAndHandleShortcuts(node, this::addOrUpdateShortcut);
         insertShortcuts(node);
         // put weight factor on meanDegree instead of taking the average => meanDegree is more stable

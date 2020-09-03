@@ -17,7 +17,7 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.IntContainer;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import com.graphhopper.coll.GHTreeMapComposed;
 import com.graphhopper.routing.util.AbstractAlgoPreparation;
@@ -169,7 +169,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
         oldPriorities = new float[nodes];
+        logger.info("Building CH prepare graph");
+        StopWatch sw = new StopWatch().start();
         PrepareGraph.buildFromGraph(prepareGraph, graph, getWeighting());
+        logger.info("Finished building CH prepare graph, took: {}", sw.stop().getSeconds());
         nodeContractor.initFromGraph();
     }
 
@@ -255,7 +258,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             }
 
             // contract node v!
-            IntSet neighbors = contractNode(polledNode, level);
+            IntContainer neighbors = contractNode(polledNode, level);
             level++;
 
             if (sortedNodes.getSize() < nodesToAvoidContract)
@@ -322,9 +325,9 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         }
     }
 
-    private IntSet contractNode(int node, int level) {
+    private IntContainer contractNode(int node, int level) {
         contractionSW.start();
-        IntSet neighbors = nodeContractor.contractNode(node);
+        IntContainer neighbors = nodeContractor.contractNode(node);
         chGraph.setLevel(node, level);
         contractionSW.stop();
         return neighbors;

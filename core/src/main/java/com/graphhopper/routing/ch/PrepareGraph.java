@@ -18,6 +18,8 @@
 
 package com.graphhopper.routing.ch;
 
+import com.carrotsearch.hppc.IntArrayList;
+import com.carrotsearch.hppc.IntContainer;
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
 import com.graphhopper.routing.ev.BooleanEncodedValue;
@@ -35,19 +37,21 @@ import static java.util.stream.Collectors.toList;
 public class PrepareGraph {
     private final int nodes;
     private final int edges;
+    private final boolean edgeBased;
     private final TurnCostFunction turnCostFunction;
     private final List<List<PrepareEdge>> outEdges;
     private final List<List<PrepareEdge>> inEdges;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
+    private final IntSet neighborSet;
     private int nextShortcutId;
 
     public static PrepareGraph nodeBased(int nodes, int edges) {
-        return new PrepareGraph(nodes, edges, (in, via, out) -> 0);
+        return new PrepareGraph(nodes, edges, false, (in, via, out) -> 0);
     }
 
     public static PrepareGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction) {
-        return new PrepareGraph(nodes, edges, turnCostFunction);
+        return new PrepareGraph(nodes, edges, true, turnCostFunction);
     }
 
     /**
@@ -55,14 +59,21 @@ public class PrepareGraph {
      * @param edges the maximum number of (non-shortcut) edges in this graph. edges-1 is the maximum edge id that may
      *              be used.
      */
-    private PrepareGraph(int nodes, int edges, TurnCostFunction turnCostFunction) {
+    private PrepareGraph(int nodes, int edges, boolean edgeBased, TurnCostFunction turnCostFunction) {
         this.turnCostFunction = turnCostFunction;
         this.nodes = nodes;
         this.edges = edges;
+        this.edgeBased = edgeBased;
         outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        if (edgeBased) {
+            outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+            inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        } else {
+            outOrigEdges = null;
+            inOrigEdges = null;
+        }
+        neighborSet = new IntHashSet();
         nextShortcutId = edges;
     }
 
@@ -109,10 +120,12 @@ public class PrepareGraph {
         outEdges.get(from).add(prepareEdgeObj);
         inEdges.get(to).add(prepareEdgeObj);
 
-        int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
-        PrepareOrigEdge edgeObj = new PrepareOrigEdge(edgeKey, from, to);
-        outOrigEdges.get(from).add(edgeObj);
-        inOrigEdges.get(to).add(edgeObj);
+        if (edgeBased) {
+            int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
+            PrepareOrigEdge edgeObj = new PrepareOrigEdge(edgeKey, from, to);
+            outOrigEdges.get(from).add(edgeObj);
+            inOrigEdges.get(to).add(edgeObj);
+        }
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
@@ -131,10 +144,14 @@ public class PrepareGraph {
     }
 
     public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
+        if (!edgeBased)
+            throw new IllegalStateException("base out explorer is not available for node-based graph");
         return new PrepareGraphOrigEdgeExplorerImpl(outOrigEdges, false);
     }
 
     public PrepareGraphOrigEdgeExplorer createBaseInEdgeExplorer() {
+        if (!edgeBased)
+            throw new IllegalStateException("base in explorer is not available for node-based graph");
         return new PrepareGraphOrigEdgeExplorerImpl(inOrigEdges, true);
     }
 
@@ -142,19 +159,24 @@ public class PrepareGraph {
         return turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
     }
 
-    public IntSet disconnect(int node) {
-        IntSet neighbors = new IntHashSet(getDegree(node));
+    public IntContainer disconnect(int node) {
+        // we use this neighbor set to guarantee a deterministic order of the returned
+        // node ids
+        neighborSet.clear();
+        IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
             if (prepareEdge.to == node)
                 continue;
             inEdges.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
-            neighbors.add(prepareEdge.to);
+            if (neighborSet.add(prepareEdge.to))
+                neighbors.add(prepareEdge.to);
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
             if (prepareEdge.from == node)
                 continue;
             outEdges.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
-            neighbors.add(prepareEdge.from);
+            if (neighborSet.add(prepareEdge.from))
+                neighbors.add(prepareEdge.from);
         }
         outEdges.get(node).clear();
         inEdges.get(node).clear();
@@ -164,8 +186,10 @@ public class PrepareGraph {
     public void close() {
         outEdges.clear();
         inEdges.clear();
-        outOrigEdges.clear();
-        inOrigEdges.clear();
+        if (edgeBased) {
+            outOrigEdges.clear();
+            inOrigEdges.clear();
+        }
     }
 
     @FunctionalInterface

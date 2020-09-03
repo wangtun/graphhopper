@@ -17,11 +17,9 @@
  */
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntHashSet;
-import com.carrotsearch.hppc.IntSet;
-import com.carrotsearch.hppc.LongHashSet;
-import com.carrotsearch.hppc.LongSet;
+import com.carrotsearch.hppc.*;
 import com.carrotsearch.hppc.cursors.IntCursor;
+import com.graphhopper.util.BitUtil;
 import com.graphhopper.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,14 +129,14 @@ class EdgeBasedNodeContractor implements NodeContractor {
     }
 
     @Override
-    public IntSet contractNode(int node) {
+    public IntContainer contractNode(int node) {
         activeStats = addingStats;
         stats().stopWatch.start();
         findAndHandlePrepareShortcuts(node, this::addShortcutsToPrepareGraph);
         insertShortcuts(node);
         // note that we do not disconnect original edges, because we are re-using the base graph for different profiles,
         // even though this is not optimal from a speed performance point of view.
-        IntSet neighbors = prepareGraph.disconnect(node);
+        IntContainer neighbors = prepareGraph.disconnect(node);
         updateHierarchyDepthsOfNeighbors(node, neighbors);
         stats().stopWatch.stop();
         return neighbors;
@@ -303,7 +301,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
         }
     }
 
-    private void updateHierarchyDepthsOfNeighbors(int node, IntSet neighbors) {
+    private void updateHierarchyDepthsOfNeighbors(int node, IntContainer neighbors) {
         int level = hierarchyDepths[node];
         for (IntCursor n : neighbors) {
             if (n.value == node)

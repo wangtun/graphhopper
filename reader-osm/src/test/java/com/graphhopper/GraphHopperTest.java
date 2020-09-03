@@ -89,8 +89,8 @@ public class GraphHopperTest {
             ASTAR + ",false,439",
             DIJKSTRA_BI + ",false,208",
             ASTAR_BI + ",false,172",
-            ASTAR_BI + ",true,33",
-            DIJKSTRA_BI + ",true,30"
+            ASTAR_BI + ",true,40",
+            DIJKSTRA_BI + ",true,37"
     })
     public void testMonacoDifferentAlgorithms(String algo, boolean withCH, int expectedVisitedNodes) {
         final String vehicle = "car";
@@ -110,8 +110,7 @@ public class GraphHopperTest {
         req.putHint(CH.DISABLE, !withCH);
         GHResponse rsp = hopper.route(req);
         assertFalse(rsp.getErrors().toString(), rsp.hasErrors());
-        // todonow: for some reason the number of visited nodes is different every time we run this test??!
-//        assertEquals(expectedVisitedNodes, rsp.getHints().getLong("visited_nodes.sum", 0));
+        assertEquals(expectedVisitedNodes, rsp.getHints().getLong("visited_nodes.sum", 0));
 
         ResponsePath res = rsp.getBest();
         assertEquals(3587.9, res.getDistance(), .1);

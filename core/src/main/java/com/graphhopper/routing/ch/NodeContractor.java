@@ -18,7 +18,7 @@
 
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.IntContainer;
 
 public interface NodeContractor {
     void initFromGraph();
@@ -35,7 +35,7 @@ public interface NodeContractor {
      *
      * @return the set of nodes adjacent to this node (before contraction)
      */
-    IntSet contractNode(int node);
+    IntContainer contractNode(int node);
 
     void finishContraction();
 
