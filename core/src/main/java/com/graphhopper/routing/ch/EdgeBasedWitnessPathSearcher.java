@@ -221,7 +221,7 @@ public class EdgeBasedWitnessPathSearcher {
                 if (isInfinite(weight)) {
                     continue;
                 }
-                boolean isPathToCenter = this.isPathToCenters[currKey] && iter.getAdjNode() == centerNode;
+                boolean isPathToCenter = isPathToCenters[currKey] && iter.getAdjNode() == centerNode;
                 boolean isZeroWeightLoop = fromNode == targetNode && edgeWeight <= MAX_ZERO_WEIGHT_LOOP;
 
                 // dijkstra expansion: add or update current entries
@@ -233,7 +233,10 @@ public class EdgeBasedWitnessPathSearcher {
                     if (!isZeroWeightLoop) {
                         updateBestPath(targetNode, targetEdge, key);
                     }
-                } else if (weight < weights[key]) {
+                } else if (weight < weights[key]
+                        // special case of a witness path with equal weight -> rather take this than the bridge path
+                        // todonow: is it worth it?
+                        || (weight == weights[key] && iter.getAdjNode() == targetNode && !isPathToCenters[currKey])) {
                     updateEntry(key, iter, weight, currKey, isPathToCenter);
                     dijkstraHeap.update_(weight, key);
                     if (!isZeroWeightLoop) {
@@ -400,7 +403,8 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private void updateBestPath(int targetNode, int targetEdge, int edgeKey) {
-        // whenever we hit the target node we update the best path
+        // whenever we hit the target node we update the best path *if* it allows turning onto the target edge
+        // less costly than the currently best path
         if (adjNodes[edgeKey] == targetNode) {
             double totalWeight = weights[edgeKey] + calcTurnWeight(GHUtility.getEdgeFromEdgeKey(edgeKey), targetNode, targetEdge);
             // there is a path to the target so we know that there must be some parent. therefore a negative parent key
@@ -428,10 +432,10 @@ public class EdgeBasedWitnessPathSearcher {
         }
     }
 
-    private void updateEntry(int key, PrepareGraphEdgeIterator edge, double weight, int currKey, boolean isPathToCenter) {
+    private void updateEntry(int key, PrepareGraphEdgeIterator edge, double weight, int parent, boolean isPathToCenter) {
         prepareEdges[key] = edge.getPrepareEdge();
         weights[key] = weight;
-        parents[key] = currKey;
+        parents[key] = parent;
         if (isPathToCenter) {
             if (!isPathToCenters[key]) {
                 numPathsToCenter++;

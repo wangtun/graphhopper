@@ -372,6 +372,8 @@ public class PrepareGraph {
             this.to = to;
             assert Double.isFinite(weight);
             this.weight = weight;
+            // todo: possible memory optimization: we only need the following for shortcut edges
+            // todo: for node-based we do not need these even for shortcuts
             this.origEdgeKeyFirst = origEdgeKeyFirst;
             this.origEdgeKeyLast = origEdgeKeyLast;
             this.skipped1 = skipped1;

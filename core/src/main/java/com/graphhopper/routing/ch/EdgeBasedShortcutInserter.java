@@ -55,6 +55,7 @@ public class EdgeBasedShortcutInserter implements EdgeBasedNodeContractor.Shortc
     public int finishContractingNode() {
         int shortcutCount = 0;
         for (Shortcut sc : shortcuts) {
+            // todo: maybe use bidir shortcuts as for node-based? is it worth it (especially with turn costs)?
             int flags = sc.reverse ? PrepareEncoder.getScBwdDir() : PrepareEncoder.getScFwdDir();
             int scId = chGraph.shortcutEdgeBased(sc.from, sc.to, flags,
                     sc.weight, sc.skip1, sc.skip2, sc.origFirst, sc.origLast);
@@ -70,6 +71,7 @@ public class EdgeBasedShortcutInserter implements EdgeBasedNodeContractor.Shortc
         // ids (because they are not known before the insertion) -> we need to re-map these ids here
         AllCHEdgesIterator iter = chGraph.getAllEdges();
         while (iter.next()) {
+            // todo: performance, ideally this loop would start with the first *shortcut* not edge
             if (!iter.isShortcut())
                 continue;
             int skip1 = getShortcutForArc(iter.getSkippedEdge1());
