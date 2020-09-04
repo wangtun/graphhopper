@@ -172,7 +172,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         logger.info("Building CH prepare graph");
         StopWatch sw = new StopWatch().start();
         PrepareGraph.buildFromGraph(prepareGraph, graph, getWeighting());
-        logger.info("Finished building CH prepare graph, took: {}", sw.stop().getSeconds());
+        logger.info("Finished building CH prepare graph, took: {}s", sw.stop().getSeconds());
         nodeContractor.initFromGraph();
     }
 
