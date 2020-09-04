@@ -64,11 +64,11 @@ public class PrepareGraph {
         this.nodes = nodes;
         this.edges = edges;
         this.edgeBased = edgeBased;
-        outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
+        inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
         if (edgeBased) {
-            outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-            inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+            outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
+            inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
         } else {
             outOrigEdges = null;
             inOrigEdges = null;
@@ -100,6 +100,7 @@ public class PrepareGraph {
                 }
             }
         }
+        prepareGraph.trimToSize();
         // todo: performance - maybe sort the edges in some clever way?
     }
 
@@ -116,23 +117,33 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdgeObj = PrepareEdge.edge(edge, from, to, weight);
-        outEdges.get(from).add(prepareEdgeObj);
-        inEdges.get(to).add(prepareEdgeObj);
-
+        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight);
+        outEdges.get(from).add(prepareEdge);
+        inEdges.get(to).add(prepareEdge);
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
-            PrepareOrigEdge edgeObj = new PrepareOrigEdge(edgeKey, from, to);
-            outOrigEdges.get(from).add(edgeObj);
-            inOrigEdges.get(to).add(edgeObj);
+            PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
+            outOrigEdges.get(from).add(prepareOrigEdge);
+            inOrigEdges.get(to).add(prepareOrigEdge);
         }
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        PrepareEdge prepareEdge = PrepareEdge.shortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
+        PrepareEdge prepareEdge = edgeBased
+                ? new EdgeBasedPrepareShortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, weight, skipped1, skipped2, origEdgeCount)
+                : new PrepareShortcut(nextShortcutId, from, to, weight, skipped1, skipped2, origEdgeCount);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
         return nextShortcutId++;
+    }
+
+    public void trimToSize() {
+        outEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        inEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        if (edgeBased) {
+            outOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
+            inOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        }
     }
 
     public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
@@ -165,18 +176,18 @@ public class PrepareGraph {
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
-            if (prepareEdge.to == node)
+            if (prepareEdge.getTo() == node)
                 continue;
-            inEdges.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.to))
-                neighbors.add(prepareEdge.to);
+            inEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getTo()))
+                neighbors.add(prepareEdge.getTo());
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
-            if (prepareEdge.from == node)
+            if (prepareEdge.getFrom() == node)
                 continue;
-            outEdges.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.from))
-                neighbors.add(prepareEdge.from);
+            outEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getFrom()))
+                neighbors.add(prepareEdge.getFrom());
         }
         outEdges.get(node).clear();
         inEdges.get(node).clear();
@@ -223,17 +234,17 @@ public class PrepareGraph {
 
         @Override
         public int getBaseNode() {
-            return reverse ? prepareEdgesAtNode.get(index).to : prepareEdgesAtNode.get(index).from;
+            return reverse ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? prepareEdgesAtNode.get(index).from : prepareEdgesAtNode.get(index).to;
+            return reverse ? prepareEdgesAtNode.get(index).getFrom() : prepareEdgesAtNode.get(index).getTo();
         }
 
         @Override
         public int getPrepareEdge() {
-            return prepareEdgesAtNode.get(index).prepareEdge;
+            return prepareEdgesAtNode.get(index).getPrepareEdge();
         }
 
         @Override
@@ -243,49 +254,49 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return prepareEdgesAtNode.get(index).origEdgeKeyFirst;
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst();
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return prepareEdgesAtNode.get(index).origEdgeKeyLast;
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyLast();
         }
 
         @Override
         public int getSkipped1() {
-            return prepareEdgesAtNode.get(index).skipped1;
+            return prepareEdgesAtNode.get(index).getSkipped1();
         }
 
         @Override
         public int getSkipped2() {
-            return prepareEdgesAtNode.get(index).skipped2;
+            return prepareEdgesAtNode.get(index).getSkipped2();
         }
 
         @Override
         public double getWeight() {
-            return prepareEdgesAtNode.get(index).weight;
+            return prepareEdgesAtNode.get(index).getWeight();
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return prepareEdgesAtNode.get(index).origEdgeCount;
+            return prepareEdgesAtNode.get(index).getOrigEdgeCount();
         }
 
         @Override
         public void setSkippedEdges(int skipped1, int skipped2) {
-            prepareEdgesAtNode.get(index).skipped1 = skipped1;
-            prepareEdgesAtNode.get(index).skipped2 = skipped2;
+            prepareEdgesAtNode.get(index).setSkipped1(skipped1);
+            prepareEdgesAtNode.get(index).setSkipped2(skipped2);
         }
 
         @Override
         public void setWeight(double weight) {
             assert Double.isFinite(weight);
-            prepareEdgesAtNode.get(index).weight = weight;
+            prepareEdgesAtNode.get(index).setWeight(weight);
         }
 
         @Override
         public void setOrigEdgeCount(int origEdgeCount) {
-            prepareEdgesAtNode.get(index).origEdgeCount = origEdgeCount;
+            prepareEdgesAtNode.get(index).setOrigEdgeCount(origEdgeCount);
         }
 
         @Override
@@ -344,45 +355,213 @@ public class PrepareGraph {
         }
     }
 
-    private static class PrepareEdge {
-        private final int prepareEdge;
-        private final int from;
-        private final int to;
-        private double weight;
-        private final int origEdgeKeyFirst;
-        private final int origEdgeKeyLast;
-        private int skipped1;
-        private int skipped2;
-        private int origEdgeCount;
+    private interface PrepareEdge {
+        boolean isShortcut();
 
-        private static PrepareEdge edge(int prepareEdge, int from, int to, double weight) {
-            int key = prepareEdge << 1;
-            if (from > to)
-                key += 1;
-            return new PrepareEdge(prepareEdge, from, to, weight, key, key, -1, -1, 1);
-        }
+        int getPrepareEdge();
 
-        private static PrepareEdge shortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new PrepareEdge(prepareEdge, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
-        }
+        int getFrom();
 
-        private PrepareEdge(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+        int getTo();
+
+        double getWeight();
+
+        int getOrigEdgeKeyFirst();
+
+        int getOrigEdgeKeyLast();
+
+        int getSkipped1();
+
+        int getSkipped2();
+
+        int getOrigEdgeCount();
+
+        void setSkipped1(int skipped1);
+
+        void setSkipped2(int skipped2);
+
+        void setWeight(double weight);
+
+        void setOrigEdgeCount(int origEdgeCount);
+    }
+
+    private static class PrepareBaseEdge implements PrepareEdge {
+        final int prepareEdge;
+        final int from;
+        final int to;
+        double weight;
+
+        public PrepareBaseEdge(int prepareEdge, int from, int to, double weight) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             assert Double.isFinite(weight);
             this.weight = weight;
-            // todo: possible memory optimization: we only need the following for shortcut edges
-            // todo: for node-based we do not need these even for shortcuts
-            this.origEdgeKeyFirst = origEdgeKeyFirst;
-            this.origEdgeKeyLast = origEdgeKeyLast;
+        }
+
+        @Override
+        public boolean isShortcut() {
+            return false;
+        }
+
+        @Override
+        public int getPrepareEdge() {
+            return prepareEdge;
+        }
+
+        @Override
+        public int getFrom() {
+            return from;
+        }
+
+        @Override
+        public int getTo() {
+            return to;
+        }
+
+        @Override
+        public double getWeight() {
+            return weight;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            return GHUtility.createEdgeKey(from, to, prepareEdge, false);
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            return GHUtility.createEdgeKey(from, to, prepareEdge, false);
+        }
+
+        @Override
+        public int getSkipped1() {
+            return throwNotAShortcut();
+        }
+
+        @Override
+        public int getSkipped2() {
+            return throwNotAShortcut();
+        }
+
+        @Override
+        public int getOrigEdgeCount() {
+            return 1;
+        }
+
+        @Override
+        public void setSkipped1(int skipped1) {
+            throwNotAShortcut();
+        }
+
+        @Override
+        public void setSkipped2(int skipped2) {
+            throwNotAShortcut();
+        }
+
+        @Override
+        public void setWeight(double weight) {
+            throwNotAShortcut();
+        }
+
+        @Override
+        public void setOrigEdgeCount(int origEdgeCount) {
+            throwNotAShortcut();
+        }
+
+        private int throwNotAShortcut() {
+            throw new IllegalStateException("This is not a shortcut");
+        }
+    }
+
+    private static class PrepareShortcut extends PrepareBaseEdge {
+        private int skipped1;
+        private int skipped2;
+        private int origEdgeCount;
+
+        private PrepareShortcut(int prepareEdge, int from, int to, double weight, int skipped1, int skipped2, int origEdgeCount) {
+            super(prepareEdge, from, to, weight);
             this.skipped1 = skipped1;
             this.skipped2 = skipped2;
             this.origEdgeCount = origEdgeCount;
         }
 
-        boolean isShortcut() {
-            return skipped1 != -1;
+        @Override
+        public boolean isShortcut() {
+            return true;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            throw new IllegalStateException("Not supported for node-based shortcuts");
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            throw new IllegalStateException("Not supported for node-based shortcuts");
+        }
+
+        @Override
+        public int getSkipped1() {
+            return skipped1;
+        }
+
+        @Override
+        public int getSkipped2() {
+            return skipped2;
+        }
+
+        @Override
+        public int getOrigEdgeCount() {
+            return origEdgeCount;
+        }
+
+        @Override
+        public void setSkipped1(int skipped1) {
+            this.skipped1 = skipped1;
+        }
+
+        @Override
+        public void setSkipped2(int skipped2) {
+            this.skipped2 = skipped2;
+        }
+
+        @Override
+        public void setWeight(double weight) {
+            this.weight = weight;
+        }
+
+        @Override
+        public void setOrigEdgeCount(int origEdgeCount) {
+            this.origEdgeCount = origEdgeCount;
+        }
+
+        @Override
+        public String toString() {
+            return from + "-" + to + " " + weight;
+        }
+    }
+
+    private static class EdgeBasedPrepareShortcut extends PrepareShortcut {
+        // we use this subclass to save some memory for node-based where these are not needed
+        private final int origEdgeKeyFirst;
+        private final int origEdgeKeyLast;
+
+        public EdgeBasedPrepareShortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast,
+                                        double weight, int skipped1, int skipped2, int origEdgeCount) {
+            super(prepareEdge, from, to, weight, skipped1, skipped2, origEdgeCount);
+            this.origEdgeKeyFirst = origEdgeKeyFirst;
+            this.origEdgeKeyLast = origEdgeKeyLast;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            return origEdgeKeyFirst;
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            return origEdgeKeyLast;
         }
 
         @Override
