@@ -386,10 +386,10 @@ public class PrepareGraph {
     }
 
     private static class PrepareBaseEdge implements PrepareEdge {
-        final int prepareEdge;
-        final int from;
-        final int to;
-        double weight;
+        private final int prepareEdge;
+        private final int from;
+        private final int to;
+        private final double weight;
 
         public PrepareBaseEdge(int prepareEdge, int from, int to, double weight) {
             this.prepareEdge = prepareEdge;
@@ -474,13 +474,20 @@ public class PrepareGraph {
         }
     }
 
-    private static class PrepareShortcut extends PrepareBaseEdge {
+    private static class PrepareShortcut implements PrepareEdge {
+        private final int prepareEdge;
+        private final int from;
+        private final int to;
+        private double weight;
         private int skipped1;
         private int skipped2;
         private int origEdgeCount;
 
         private PrepareShortcut(int prepareEdge, int from, int to, double weight, int skipped1, int skipped2, int origEdgeCount) {
-            super(prepareEdge, from, to, weight);
+            this.prepareEdge = prepareEdge;
+            this.from = from;
+            this.to = to;
+            this.weight = weight;
             this.skipped1 = skipped1;
             this.skipped2 = skipped2;
             this.origEdgeCount = origEdgeCount;
@@ -489,6 +496,26 @@ public class PrepareGraph {
         @Override
         public boolean isShortcut() {
             return true;
+        }
+
+        @Override
+        public int getPrepareEdge() {
+            return prepareEdge;
+        }
+
+        @Override
+        public int getFrom() {
+            return from;
+        }
+
+        @Override
+        public int getTo() {
+            return to;
+        }
+
+        @Override
+        public double getWeight() {
+            return weight;
         }
 
         @Override
@@ -566,7 +593,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
+            return getFrom() + "-" + getTo() + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + getWeight();
         }
     }
 
