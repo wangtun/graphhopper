@@ -39,8 +39,8 @@ public class PrepareGraph {
     private final int edges;
     private final boolean edgeBased;
     private final TurnCostFunction turnCostFunction;
-    private final List<List<IPrepareEdge>> outEdges;
-    private final List<List<IPrepareEdge>> inEdges;
+    private final List<List<PrepareEdge>> outEdges;
+    private final List<List<PrepareEdge>> inEdges;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
     private final IntSet neighborSet;
@@ -64,8 +64,8 @@ public class PrepareGraph {
         this.nodes = nodes;
         this.edges = edges;
         this.edgeBased = edgeBased;
-        outEdges = IntStream.range(0, nodes).<List<IPrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
-        inEdges = IntStream.range(0, nodes).<List<IPrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
+        inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
         if (edgeBased) {
             outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
             inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(3)).collect(toList());
@@ -116,7 +116,7 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        IPrepareEdge prepareEdge = PrepareEdge.edge(edge, from, to, weight);
+        PrepareEdge prepareEdge = PrepareShorcut.edge(edge, from, to, weight);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
 
@@ -129,7 +129,7 @@ public class PrepareGraph {
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        IPrepareEdge prepareEdge = PrepareEdge.shortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
+        PrepareEdge prepareEdge = PrepareShorcut.shortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, weight, origEdgeCount);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
         return nextShortcutId++;
@@ -164,7 +164,7 @@ public class PrepareGraph {
         // node ids
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
-        for (IPrepareEdge prepareEdge : outEdges.get(node)) {
+        for (PrepareEdge prepareEdge : outEdges.get(node)) {
             int adjNode = prepareEdge.getTo();
             if (adjNode == node)
                 continue;
@@ -172,7 +172,7 @@ public class PrepareGraph {
             if (neighborSet.add(adjNode))
                 neighbors.add(adjNode);
         }
-        for (IPrepareEdge prepareEdge : inEdges.get(node)) {
+        for (PrepareEdge prepareEdge : inEdges.get(node)) {
             int adjNode = prepareEdge.getFrom();
             if (adjNode == node)
                 continue;
@@ -200,12 +200,12 @@ public class PrepareGraph {
     }
 
     private static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
-        private final List<List<IPrepareEdge>> prepareEdges;
+        private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
-        private List<IPrepareEdge> prepareEdgesAtNode;
+        private List<PrepareEdge> prepareEdgesAtNode;
         private int index;
 
-        PrepareGraphEdgeExplorerImpl(List<List<IPrepareEdge>> prepareEdges, boolean reverse) {
+        PrepareGraphEdgeExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
             this.prepareEdges = prepareEdges;
             this.reverse = reverse;
         }
@@ -346,7 +346,7 @@ public class PrepareGraph {
         }
     }
 
-    public interface IPrepareEdge {
+    public interface PrepareEdge {
 
         boolean isShortcut();
 
@@ -377,7 +377,7 @@ public class PrepareGraph {
         void setOrigEdgeCount(int origEdgeCount);
     }
 
-    private static class PrepareEdge implements IPrepareEdge {
+    private static class PrepareShorcut implements PrepareEdge {
         private final int prepareEdge;
         private final int from;
         private final int to;
@@ -388,18 +388,18 @@ public class PrepareGraph {
         private int skipped2;
         private int origEdgeCount;
 
-        private static IPrepareEdge edge(int prepareEdge, int from, int to, double weight) {
+        private static PrepareEdge edge(int prepareEdge, int from, int to, double weight) {
             int key = prepareEdge << 1;
             if (from > to)
                 key += 1;
-            return new PrepareEdge(prepareEdge, from, to, weight, key, key, -1, -1, 1);
+            return new PrepareShorcut(prepareEdge, from, to, weight, key, key, -1, -1, 1);
         }
 
-        private static IPrepareEdge shortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-            return new PrepareEdge(prepareEdge, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
+        private static PrepareEdge shortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
+            return new PrepareShorcut(prepareEdge, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
         }
 
-        private PrepareEdge(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+        private PrepareShorcut(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
