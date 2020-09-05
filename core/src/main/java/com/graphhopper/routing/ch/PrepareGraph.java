@@ -42,8 +42,10 @@ public class PrepareGraph {
     private final TurnCostFunction turnCostFunction;
     private final List<List<PrepareBaseEdge>> outBaseEdges;
     private final List<List<PrepareBaseEdge>> inBaseEdges;
-    private final List<List<PrepareShortcut>> outShortcuts;
-    private final List<List<PrepareShortcut>> inShortcuts;
+    private final List<List<PrepareShortcut>> outShortcutsNB;
+    private final List<List<PrepareShortcut>> inShortcutsNB;
+    private final List<List<EdgeBasedPrepareShortcut>> outShortcutsEB;
+    private final List<List<EdgeBasedPrepareShortcut>> inShortcutsEB;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
     private final IntSet neighborSet;
@@ -69,12 +71,18 @@ public class PrepareGraph {
         this.edgeBased = edgeBased;
         outBaseEdges = IntStream.range(0, nodes).<List<PrepareBaseEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
         inBaseEdges = IntStream.range(0, nodes).<List<PrepareBaseEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
-        outShortcuts = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
-        inShortcuts = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
         if (edgeBased) {
+            outShortcutsNB = null;
+            inShortcutsNB = null;
+            outShortcutsEB = IntStream.range(0, nodes).<List<EdgeBasedPrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
+            inShortcutsEB = IntStream.range(0, nodes).<List<EdgeBasedPrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
             outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
             inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
         } else {
+            outShortcutsEB = null;
+            inShortcutsEB = null;
+            outShortcutsNB = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
+            inShortcutsNB = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
             outOrigEdges = null;
             inOrigEdges = null;
         }
@@ -119,7 +127,8 @@ public class PrepareGraph {
 
     public int getDegree(int node) {
         // todonow: we have separate total and base degree, maybe use this for edge-based?
-        return outBaseEdges.get(node).size() + inBaseEdges.get(node).size() + outShortcuts.get(node).size() + inShortcuts.get(node).size();
+        return outBaseEdges.get(node).size() + inBaseEdges.get(node).size() +
+                (edgeBased ? (outShortcutsEB.get(node).size() + inShortcutsEB.get(node).size()) : (outShortcutsNB.get(node).size() + inShortcutsNB.get(node).size()));
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
@@ -135,31 +144,38 @@ public class PrepareGraph {
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        PrepareShortcut prepareEdge = edgeBased
-                ? new EdgeBasedPrepareShortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, weight, skipped1, skipped2, origEdgeCount)
-                : new PrepareShortcut(nextShortcutId, from, to, weight, skipped1, skipped2, origEdgeCount);
-        outShortcuts.get(from).add(prepareEdge);
-        inShortcuts.get(to).add(prepareEdge);
+        if (edgeBased) {
+            EdgeBasedPrepareShortcut prepareEdge = new EdgeBasedPrepareShortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, weight, skipped1, skipped2, origEdgeCount);
+            outShortcutsEB.get(from).add(prepareEdge);
+            inShortcutsEB.get(to).add(prepareEdge);
+        } else {
+            PrepareShortcut prepareEdge = new PrepareShortcut(nextShortcutId, from, to, weight, skipped1, skipped2, origEdgeCount);
+            outShortcutsNB.get(from).add(prepareEdge);
+            inShortcutsNB.get(to).add(prepareEdge);
+        }
         return nextShortcutId++;
     }
 
     public void trimToSize() {
         outBaseEdges.forEach(l -> ((ArrayList) l).trimToSize());
         inBaseEdges.forEach(l -> ((ArrayList) l).trimToSize());
-        outShortcuts.forEach(l -> ((ArrayList) l).trimToSize());
-        inShortcuts.forEach(l -> ((ArrayList) l).trimToSize());
         if (edgeBased) {
+            outShortcutsEB.forEach(l -> ((ArrayList) l).trimToSize());
+            inShortcutsEB.forEach(l -> ((ArrayList) l).trimToSize());
             outOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
             inOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        } else {
+            outShortcutsNB.forEach(l -> ((ArrayList) l).trimToSize());
+            inShortcutsNB.forEach(l -> ((ArrayList) l).trimToSize());
         }
     }
 
     public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
-        return new PrepareGraphEdgeExplorerImpl(outBaseEdges, outShortcuts, false);
+        return new PrepareGraphEdgeExplorerImpl(outBaseEdges, outShortcutsNB, outShortcutsEB, false);
     }
 
     public PrepareGraphEdgeExplorer createInEdgeExplorer() {
-        return new PrepareGraphEdgeExplorerImpl(inBaseEdges, inShortcuts, true);
+        return new PrepareGraphEdgeExplorerImpl(inBaseEdges, inShortcutsNB, inShortcutsEB, true);
     }
 
     public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
@@ -190,7 +206,9 @@ public class PrepareGraph {
             if (neighborSet.add(prepareEdge.getTo()))
                 neighbors.add(prepareEdge.getTo());
         }
-        for (PrepareShortcut prepareEdge : outShortcuts.get(node)) {
+        List<? extends List<? extends PrepareEdge>> outShortcuts = edgeBased ? outShortcutsEB : outShortcutsNB;
+        List<? extends List<? extends PrepareEdge>> inShortcuts = edgeBased ? inShortcutsEB : inShortcutsNB;
+        for (PrepareEdge prepareEdge : outShortcuts.get(node)) {
             if (prepareEdge.getTo() == node)
                 continue;
             inShortcuts.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
@@ -221,11 +239,14 @@ public class PrepareGraph {
     public void close() {
         outBaseEdges.clear();
         inBaseEdges.clear();
-        outShortcuts.clear();
-        inShortcuts.clear();
         if (edgeBased) {
             outOrigEdges.clear();
             inOrigEdges.clear();
+            outShortcutsEB.clear();
+            inShortcutsEB.clear();
+        } else {
+            outShortcutsNB.clear();
+            inShortcutsNB.clear();
         }
     }
 
@@ -236,16 +257,18 @@ public class PrepareGraph {
 
     private static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
         private final List<List<PrepareBaseEdge>> prepareBaseEdges;
-        private final List<List<PrepareShortcut>> prepareShortcuts;
+        private final List<List<PrepareShortcut>> prepareShortcutsNB;
+        private final List<List<EdgeBasedPrepareShortcut>> prepareShortcutsEB;
         private final boolean reverse;
         private List<? extends PrepareEdge> prepareEdgesAtNode;
         private int node;
         private int index;
         private boolean inSc;
 
-        PrepareGraphEdgeExplorerImpl(List<List<PrepareBaseEdge>> prepareBaseEdges, List<List<PrepareShortcut>> prepareShortcuts, boolean reverse) {
+        PrepareGraphEdgeExplorerImpl(List<List<PrepareBaseEdge>> prepareBaseEdges, List<List<PrepareShortcut>> prepareShortcutsNB, List<List<EdgeBasedPrepareShortcut>> prepareShortcutsEB, boolean reverse) {
             this.prepareBaseEdges = prepareBaseEdges;
-            this.prepareShortcuts = prepareShortcuts;
+            this.prepareShortcutsNB = prepareShortcutsNB;
+            this.prepareShortcutsEB = prepareShortcutsEB;
             this.reverse = reverse;
         }
 
@@ -263,7 +286,7 @@ public class PrepareGraph {
             index++;
             if (!inSc && index == prepareEdgesAtNode.size()) {
                 index = 0;
-                prepareEdgesAtNode = prepareShortcuts.get(node);
+                prepareEdgesAtNode = prepareShortcutsNB != null ? prepareShortcutsNB.get(node) : prepareShortcutsEB.get(node);
                 inSc = true;
             }
             return index < prepareEdgesAtNode.size();
@@ -606,14 +629,27 @@ public class PrepareGraph {
         }
     }
 
-    private static class EdgeBasedPrepareShortcut extends PrepareShortcut {
+    private static class EdgeBasedPrepareShortcut implements PrepareEdge {
         // we use this subclass to save some memory for node-based where these are not needed
         private final int origEdgeKeyFirst;
         private final int origEdgeKeyLast;
+        private final int prepareEdge;
+        private final int from;
+        private final int to;
+        private double weight;
+        private int skipped1;
+        private int skipped2;
+        private int origEdgeCount;
 
         public EdgeBasedPrepareShortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast,
                                         double weight, int skipped1, int skipped2, int origEdgeCount) {
-            super(prepareEdge, from, to, weight, skipped1, skipped2, origEdgeCount);
+            this.prepareEdge = prepareEdge;
+            this.from = from;
+            this.to = to;
+            this.weight = weight;
+            this.skipped1 = skipped1;
+            this.skipped2 = skipped2;
+            this.origEdgeCount = origEdgeCount;
             this.origEdgeKeyFirst = origEdgeKeyFirst;
             this.origEdgeKeyLast = origEdgeKeyLast;
         }
@@ -631,6 +667,66 @@ public class PrepareGraph {
         @Override
         public String toString() {
             return getFrom() + "-" + getTo() + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + getWeight();
+        }
+
+        @Override
+        public boolean isShortcut() {
+            return true;
+        }
+
+        @Override
+        public int getPrepareEdge() {
+            return prepareEdge;
+        }
+
+        @Override
+        public int getFrom() {
+            return from;
+        }
+
+        @Override
+        public int getTo() {
+            return to;
+        }
+
+        @Override
+        public double getWeight() {
+            return weight;
+        }
+
+        @Override
+        public int getSkipped1() {
+            return skipped1;
+        }
+
+        @Override
+        public int getSkipped2() {
+            return skipped2;
+        }
+
+        @Override
+        public int getOrigEdgeCount() {
+            return origEdgeCount;
+        }
+
+        @Override
+        public void setSkipped1(int skipped1) {
+            this.skipped1 = skipped1;
+        }
+
+        @Override
+        public void setSkipped2(int skipped2) {
+            this.skipped2 = skipped2;
+        }
+
+        @Override
+        public void setWeight(double weight) {
+            this.weight = weight;
+        }
+
+        @Override
+        public void setOrigEdgeCount(int origEdgeCount) {
+            this.origEdgeCount = origEdgeCount;
         }
     }
 
