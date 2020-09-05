@@ -116,9 +116,9 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdgeObj = PrepareEdge.edge(edge, from, to, weight);
-        outEdges.get(from).add(prepareEdgeObj);
-        inEdges.get(to).add(prepareEdgeObj);
+        PrepareEdge prepareEdge = PrepareEdge.edge(edge, from, to, weight);
+        outEdges.get(from).add(prepareEdge);
+        inEdges.get(to).add(prepareEdge);
 
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
@@ -165,18 +165,20 @@ public class PrepareGraph {
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
-            if (prepareEdge.to == node)
+            int adjNode = prepareEdge.getTo();
+            if (adjNode == node)
                 continue;
-            inEdges.get(prepareEdge.to).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.to))
-                neighbors.add(prepareEdge.to);
+            inEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
-            if (prepareEdge.from == node)
+            int adjNode = prepareEdge.getFrom();
+            if (adjNode == node)
                 continue;
-            outEdges.get(prepareEdge.from).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.from))
-                neighbors.add(prepareEdge.from);
+            outEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         outEdges.set(node, null);
         inEdges.set(node, null);
@@ -223,17 +225,17 @@ public class PrepareGraph {
 
         @Override
         public int getBaseNode() {
-            return reverse ? prepareEdgesAtNode.get(index).to : prepareEdgesAtNode.get(index).from;
+            return reverse ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? prepareEdgesAtNode.get(index).from : prepareEdgesAtNode.get(index).to;
+            return reverse ? prepareEdgesAtNode.get(index).getFrom() : prepareEdgesAtNode.get(index).getTo();
         }
 
         @Override
         public int getPrepareEdge() {
-            return prepareEdgesAtNode.get(index).prepareEdge;
+            return prepareEdgesAtNode.get(index).getPrepareEdge();
         }
 
         @Override
@@ -243,49 +245,49 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return prepareEdgesAtNode.get(index).origEdgeKeyFirst;
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst();
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return prepareEdgesAtNode.get(index).origEdgeKeyLast;
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyLast();
         }
 
         @Override
         public int getSkipped1() {
-            return prepareEdgesAtNode.get(index).skipped1;
+            return prepareEdgesAtNode.get(index).getSkipped1();
         }
 
         @Override
         public int getSkipped2() {
-            return prepareEdgesAtNode.get(index).skipped2;
+            return prepareEdgesAtNode.get(index).getSkipped2();
         }
 
         @Override
         public double getWeight() {
-            return prepareEdgesAtNode.get(index).weight;
+            return prepareEdgesAtNode.get(index).getWeight();
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return prepareEdgesAtNode.get(index).origEdgeCount;
+            return prepareEdgesAtNode.get(index).getOrigEdgeCount();
         }
 
         @Override
         public void setSkippedEdges(int skipped1, int skipped2) {
-            prepareEdgesAtNode.get(index).skipped1 = skipped1;
-            prepareEdgesAtNode.get(index).skipped2 = skipped2;
+            prepareEdgesAtNode.get(index).setSkipped1(skipped1);
+            prepareEdgesAtNode.get(index).setSkipped2(skipped2);
         }
 
         @Override
         public void setWeight(double weight) {
             assert Double.isFinite(weight);
-            prepareEdgesAtNode.get(index).weight = weight;
+            prepareEdgesAtNode.get(index).setWeight(weight);
         }
 
         @Override
         public void setOrigEdgeCount(int origEdgeCount) {
-            prepareEdgesAtNode.get(index).origEdgeCount = origEdgeCount;
+            prepareEdgesAtNode.get(index).setOrigEdgeCount(origEdgeCount);
         }
 
         @Override
@@ -383,6 +385,58 @@ public class PrepareGraph {
 
         boolean isShortcut() {
             return skipped1 != -1;
+        }
+
+        public int getPrepareEdge() {
+            return prepareEdge;
+        }
+
+        public int getFrom() {
+            return from;
+        }
+
+        public int getTo() {
+            return to;
+        }
+
+        public double getWeight() {
+            return weight;
+        }
+
+        public int getOrigEdgeKeyFirst() {
+            return origEdgeKeyFirst;
+        }
+
+        public int getOrigEdgeKeyLast() {
+            return origEdgeKeyLast;
+        }
+
+        public int getSkipped1() {
+            return skipped1;
+        }
+
+        public int getSkipped2() {
+            return skipped2;
+        }
+
+        public int getOrigEdgeCount() {
+            return origEdgeCount;
+        }
+
+        public void setSkipped1(int skipped1) {
+            this.skipped1 = skipped1;
+        }
+
+        public void setSkipped2(int skipped2) {
+            this.skipped2 = skipped2;
+        }
+
+        public void setWeight(double weight) {
+            this.weight = weight;
+        }
+
+        public void setOrigEdgeCount(int origEdgeCount) {
+            this.origEdgeCount = origEdgeCount;
         }
 
         @Override
