@@ -178,8 +178,8 @@ public class PrepareGraph {
             if (neighborSet.add(prepareEdge.from))
                 neighbors.add(prepareEdge.from);
         }
-        outEdges.get(node).clear();
-        inEdges.get(node).clear();
+        outEdges.set(node, null);
+        inEdges.set(node, null);
         return neighbors;
     }
 
