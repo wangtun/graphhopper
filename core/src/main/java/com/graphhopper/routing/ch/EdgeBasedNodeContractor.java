@@ -354,7 +354,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
         LOGGER.trace("Adding shortcut from {} to {}, weight: {}, firstOrigEdgeKey: {}, lastOrigEdgeKey: {}",
                 from, adjNode, edgeTo.weight, origFirstKey, edgeTo.incEdgeKey);
         int prepareEdge = prepareGraph.addShortcut(from, adjNode, origFirstKey, edgeTo.incEdgeKey, edgeFrom.prepareEdge, edgeTo.prepareEdge, edgeTo.weight, origEdgeCount);
-        addedShortcutsCount++;
         // does not matter here
         int incEdgeKey = -1;
         PrepareCHEntry entry = new PrepareCHEntry(prepareEdge, incEdgeKey, edgeTo.adjNode, edgeTo.weight);
