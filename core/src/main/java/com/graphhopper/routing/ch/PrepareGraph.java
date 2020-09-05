@@ -150,8 +150,8 @@ public class PrepareGraph {
     }
 
     public void trimToSize() {
-        outEdges.forEach(l -> ((ArrayList) l).trimToSize());
-        inEdges.forEach(l -> ((ArrayList) l).trimToSize());
+//        outEdges.forEach(l -> ((ArrayList) l).trimToSize());
+//        inEdges.forEach(l -> ((ArrayList) l).trimToSize());
         if (edgeBased) {
             outOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
             inOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
