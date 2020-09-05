@@ -90,15 +90,22 @@ public class PrepareGraph {
             if (iter.get(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, false);
                 if (Double.isFinite(weight)) {
-                    prepareGraph.addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weight);
+                    prepareGraph.addOrigEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge());
                 }
             }
             if (iter.getReverse(accessEnc)) {
                 double weight = weighting.calcEdgeWeight(iter, true);
                 if (Double.isFinite(weight)) {
-                    prepareGraph.addEdge(iter.getAdjNode(), iter.getBaseNode(), iter.getEdge(), weight);
+                    prepareGraph.addOrigEdge(iter.getAdjNode(), iter.getBaseNode(), iter.getEdge());
                 }
             }
+
+            double weightFwd = iter.get(accessEnc) ? weighting.calcEdgeWeight(iter, false) : Double.POSITIVE_INFINITY;
+            double weightBwd = iter.getReverse(accessEnc) ? weighting.calcEdgeWeight(iter, true) : Double.POSITIVE_INFINITY;
+            if (Double.isInfinite(weightFwd) && Double.isInfinite(weightBwd))
+                continue;
+
+            prepareGraph.addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weightFwd, weightBwd);
         }
         prepareGraph.trimToSize();
         // todo: performance - maybe sort the edges in some clever way?
@@ -116,16 +123,21 @@ public class PrepareGraph {
         return outEdges.get(node).size() + inEdges.get(node).size();
     }
 
-    public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight);
-        outEdges.get(from).add(prepareEdge);
-        inEdges.get(to).add(prepareEdge);
+    public void addOrigEdge(int from, int to, int edge) {
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
             PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
             outOrigEdges.get(from).add(prepareOrigEdge);
             inOrigEdges.get(to).add(prepareOrigEdge);
         }
+    }
+
+    public void addEdge(int from, int to, int edge, double weightFwd, double weightBwd) {
+        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weightFwd, weightBwd);
+        outEdges.get(from).add(prepareEdge);
+        outEdges.get(to).add(prepareEdge);
+        inEdges.get(from).add(prepareEdge);
+        inEdges.get(to).add(prepareEdge);
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
@@ -154,6 +166,7 @@ public class PrepareGraph {
         return new PrepareGraphEdgeExplorerImpl(inEdges, true);
     }
 
+    // todonow: rename?
     public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
         if (!edgeBased)
             throw new IllegalStateException("base out explorer is not available for node-based graph");
@@ -176,18 +189,25 @@ public class PrepareGraph {
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
-            if (prepareEdge.getTo() == node)
+            int adjNode = prepareEdge.getTo();
+            if (adjNode == node)
+                adjNode = prepareEdge.getFrom();
+            if (adjNode == node)
                 continue;
-            inEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.getTo()))
-                neighbors.add(prepareEdge.getTo());
+            inEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
-            if (prepareEdge.getFrom() == node)
+            // todonow: clean up all this mess
+            int adjNode = prepareEdge.getFrom();
+            if (adjNode == node)
+                adjNode = prepareEdge.getTo();
+            if (adjNode == node)
                 continue;
-            outEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.getFrom()))
-                neighbors.add(prepareEdge.getFrom());
+            outEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         outEdges.get(node).clear();
         inEdges.get(node).clear();
@@ -211,6 +231,7 @@ public class PrepareGraph {
     private static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
         private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
+        private int node;
         private List<PrepareEdge> prepareEdgesAtNode;
         private int index;
 
@@ -221,6 +242,7 @@ public class PrepareGraph {
 
         @Override
         public PrepareGraphEdgeIterator setBaseNode(int node) {
+            this.node = node;
             this.prepareEdgesAtNode = prepareEdges.get(node);
             this.index = -1;
             return this;
@@ -228,18 +250,29 @@ public class PrepareGraph {
 
         @Override
         public boolean next() {
-            index++;
-            return index < prepareEdgesAtNode.size();
+            while (true) {
+                index++;
+                if (index >= prepareEdgesAtNode.size())
+                    return false;
+                if (Double.isFinite(getWeight()))
+                    return true;
+            }
         }
 
         @Override
         public int getBaseNode() {
-            return reverse ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
+            if (isShortcut())
+                return reverse ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
+            else
+                return node;
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? prepareEdgesAtNode.get(index).getFrom() : prepareEdgesAtNode.get(index).getTo();
+            if (isShortcut())
+                return reverse ? prepareEdgesAtNode.get(index).getFrom() : prepareEdgesAtNode.get(index).getTo();
+            else
+                return node == prepareEdgesAtNode.get(index).getFrom() ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
         }
 
         @Override
@@ -254,12 +287,20 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst();
+            if (isShortcut())
+                return prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst();
+            else
+                return !isReverse() ? prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst() :
+                        GHUtility.reverseEdgeKey(prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst());
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return prepareEdgesAtNode.get(index).getOrigEdgeKeyLast();
+            if (isShortcut())
+                return prepareEdgesAtNode.get(index).getOrigEdgeKeyLast();
+            else
+                return !isReverse() ? prepareEdgesAtNode.get(index).getOrigEdgeKeyLast() :
+                        GHUtility.reverseEdgeKey(prepareEdgesAtNode.get(index).getOrigEdgeKeyLast());
         }
 
         @Override
@@ -274,7 +315,7 @@ public class PrepareGraph {
 
         @Override
         public double getWeight() {
-            return prepareEdgesAtNode.get(index).getWeight();
+            return isReverse() ? prepareEdgesAtNode.get(index).getWeightBwd() : prepareEdgesAtNode.get(index).getWeightFwd();
         }
 
         @Override
@@ -302,6 +343,11 @@ public class PrepareGraph {
         @Override
         public String toString() {
             return index < 0 ? "not_started" : getBaseNode() + "-" + getAdjNode();
+        }
+
+        private boolean isReverse() {
+            return (reverse && node == prepareEdgesAtNode.get(index).getFrom())
+                    || (!reverse && node != prepareEdgesAtNode.get(index).getFrom());
         }
     }
 
@@ -364,7 +410,9 @@ public class PrepareGraph {
 
         int getTo();
 
-        double getWeight();
+        double getWeightFwd();
+
+        double getWeightBwd();
 
         int getOrigEdgeKeyFirst();
 
@@ -390,15 +438,16 @@ public class PrepareGraph {
         private final int from;
         private final int to;
         private final int key;
-        private final double weight;
+        private final double weightFwd;
+        private final double weightBwd;
 
-        public PrepareBaseEdge(int prepareEdge, int from, int to, double weight) {
+        public PrepareBaseEdge(int prepareEdge, int from, int to, double weightFwd, double weightBwd) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             this.key = GHUtility.createEdgeKey(from, to, prepareEdge, false);
-            assert Double.isFinite(weight);
-            this.weight = weight;
+            this.weightFwd = weightFwd;
+            this.weightBwd = weightBwd;
         }
 
         @Override
@@ -422,8 +471,13 @@ public class PrepareGraph {
         }
 
         @Override
-        public double getWeight() {
-            return weight;
+        public double getWeightFwd() {
+            return weightFwd;
+        }
+
+        @Override
+        public double getWeightBwd() {
+            return weightBwd;
         }
 
         @Override
@@ -516,7 +570,12 @@ public class PrepareGraph {
         }
 
         @Override
-        public double getWeight() {
+        public double getWeightFwd() {
+            return weight;
+        }
+
+        @Override
+        public double getWeightBwd() {
             return weight;
         }
 
@@ -595,7 +654,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return getFrom() + "-" + getTo() + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + getWeight();
+            return getFrom() + "-" + getTo() + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + getWeightFwd() + " / " + getWeightBwd();
         }
     }
 
