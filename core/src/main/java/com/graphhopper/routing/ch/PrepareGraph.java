@@ -119,7 +119,7 @@ public class PrepareGraph {
         int key = edge << 1;
         if (from > to)
             key += 1;
-        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight, key, key, -1, -1, 1);
+        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight, key);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
 
@@ -407,7 +407,7 @@ public class PrepareGraph {
 
         @Override
         public boolean isShortcut() {
-            return skipped1 != -1;
+            return true;
         }
 
         @Override
@@ -485,30 +485,21 @@ public class PrepareGraph {
         private final int prepareEdge;
         private final int from;
         private final int to;
-        private double weight;
-        private final int origEdgeKeyFirst;
-        private final int origEdgeKeyLast;
-        private int skipped1;
-        private int skipped2;
-        private int origEdgeCount;
+        private final double weight;
+        private final int origKey;
 
-        private PrepareBaseEdge(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+        private PrepareBaseEdge(int prepareEdge, int from, int to, double weight, int origKey) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             assert Double.isFinite(weight);
             this.weight = weight;
-            // todo: possible memory optimization: we only need the following for shortcut edges
-            this.origEdgeKeyFirst = origEdgeKeyFirst;
-            this.origEdgeKeyLast = origEdgeKeyLast;
-            this.skipped1 = skipped1;
-            this.skipped2 = skipped2;
-            this.origEdgeCount = origEdgeCount;
+            this.origKey = origKey;
         }
 
         @Override
         public boolean isShortcut() {
-            return skipped1 != -1;
+            return false;
         }
 
         @Override
@@ -533,52 +524,52 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return origEdgeKeyFirst;
+            return origKey;
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return origEdgeKeyLast;
+            return origKey;
         }
 
         @Override
         public int getSkipped1() {
-            return skipped1;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getSkipped2() {
-            return skipped2;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return origEdgeCount;
+            return 1;
         }
 
         @Override
         public void setSkipped1(int skipped1) {
-            this.skipped1 = skipped1;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void setSkipped2(int skipped2) {
-            this.skipped2 = skipped2;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void setWeight(double weight) {
-            this.weight = weight;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void setOrigEdgeCount(int origEdgeCount) {
-            this.origEdgeCount = origEdgeCount;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String toString() {
-            return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
+            return from + "-" + to + " (" + origKey + ") " + weight;
         }
     }
 
