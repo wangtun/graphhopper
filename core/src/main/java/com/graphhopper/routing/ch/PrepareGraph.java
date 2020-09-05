@@ -437,7 +437,6 @@ public class PrepareGraph {
         private final int prepareEdge;
         private final int from;
         private final int to;
-        private final int key;
         private final double weightFwd;
         private final double weightBwd;
 
@@ -445,7 +444,6 @@ public class PrepareGraph {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
-            this.key = GHUtility.createEdgeKey(from, to, prepareEdge, false);
             this.weightFwd = weightFwd;
             this.weightBwd = weightBwd;
         }
@@ -482,12 +480,12 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return key;
+            return GHUtility.createEdgeKey(from, to, prepareEdge, false);
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return key;
+            return getOrigEdgeKeyFirst();
         }
 
         @Override
