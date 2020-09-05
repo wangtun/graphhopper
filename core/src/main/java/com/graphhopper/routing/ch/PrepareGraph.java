@@ -209,8 +209,8 @@ public class PrepareGraph {
             if (neighborSet.add(adjNode))
                 neighbors.add(adjNode);
         }
-        outEdges.get(node).clear();
-        inEdges.get(node).clear();
+        outEdges.set(node, null);
+        inEdges.set(node, null);
         return neighbors;
     }
 
