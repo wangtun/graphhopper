@@ -30,6 +30,7 @@ import com.graphhopper.util.GHUtility;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.toList;
@@ -39,8 +40,10 @@ public class PrepareGraph {
     private final int edges;
     private final boolean edgeBased;
     private final TurnCostFunction turnCostFunction;
-    private final List<List<PrepareEdge>> outEdges;
-    private final List<List<PrepareEdge>> inEdges;
+    private final List<List<PrepareBaseEdge>> outBaseEdges;
+    private final List<List<PrepareBaseEdge>> inBaseEdges;
+    private final List<List<PrepareShortcut>> outShortcuts;
+    private final List<List<PrepareShortcut>> inShortcuts;
     private final List<List<PrepareOrigEdge>> outOrigEdges;
     private final List<List<PrepareOrigEdge>> inOrigEdges;
     private final IntSet neighborSet;
@@ -64,8 +67,10 @@ public class PrepareGraph {
         this.nodes = nodes;
         this.edges = edges;
         this.edgeBased = edgeBased;
-        outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
-        inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
+        outBaseEdges = IntStream.range(0, nodes).<List<PrepareBaseEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
+        inBaseEdges = IntStream.range(0, nodes).<List<PrepareBaseEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
+        outShortcuts = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
+        inShortcuts = IntStream.range(0, nodes).<List<PrepareShortcut>>mapToObj(i -> new ArrayList<>(0)).collect(Collectors.toList());
         if (edgeBased) {
             outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
             inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
@@ -113,13 +118,14 @@ public class PrepareGraph {
     }
 
     public int getDegree(int node) {
-        return outEdges.get(node).size() + inEdges.get(node).size();
+        // todonow: we have separate total and base degree, maybe use this for edge-based?
+        return outBaseEdges.get(node).size() + inBaseEdges.get(node).size() + outShortcuts.get(node).size() + inShortcuts.get(node).size();
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight);
-        outEdges.get(from).add(prepareEdge);
-        inEdges.get(to).add(prepareEdge);
+        PrepareBaseEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight);
+        outBaseEdges.get(from).add(prepareEdge);
+        inBaseEdges.get(to).add(prepareEdge);
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
             PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
@@ -129,17 +135,19 @@ public class PrepareGraph {
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        PrepareEdge prepareEdge = edgeBased
+        PrepareShortcut prepareEdge = edgeBased
                 ? new EdgeBasedPrepareShortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, weight, skipped1, skipped2, origEdgeCount)
                 : new PrepareShortcut(nextShortcutId, from, to, weight, skipped1, skipped2, origEdgeCount);
-        outEdges.get(from).add(prepareEdge);
-        inEdges.get(to).add(prepareEdge);
+        outShortcuts.get(from).add(prepareEdge);
+        inShortcuts.get(to).add(prepareEdge);
         return nextShortcutId++;
     }
 
     public void trimToSize() {
-        outEdges.forEach(l -> ((ArrayList) l).trimToSize());
-        inEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        outBaseEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        inBaseEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        outShortcuts.forEach(l -> ((ArrayList) l).trimToSize());
+        inShortcuts.forEach(l -> ((ArrayList) l).trimToSize());
         if (edgeBased) {
             outOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
             inOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
@@ -147,11 +155,11 @@ public class PrepareGraph {
     }
 
     public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
-        return new PrepareGraphEdgeExplorerImpl(outEdges, false);
+        return new PrepareGraphEdgeExplorerImpl(outBaseEdges, outShortcuts, false);
     }
 
     public PrepareGraphEdgeExplorer createInEdgeExplorer() {
-        return new PrepareGraphEdgeExplorerImpl(inEdges, true);
+        return new PrepareGraphEdgeExplorerImpl(inBaseEdges, inShortcuts, true);
     }
 
     public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
@@ -175,28 +183,46 @@ public class PrepareGraph {
         // node ids
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
-        for (PrepareEdge prepareEdge : outEdges.get(node)) {
+        for (PrepareEdge prepareEdge : outBaseEdges.get(node)) {
             if (prepareEdge.getTo() == node)
                 continue;
-            inEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
+            inBaseEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
             if (neighborSet.add(prepareEdge.getTo()))
                 neighbors.add(prepareEdge.getTo());
         }
-        for (PrepareEdge prepareEdge : inEdges.get(node)) {
+        for (PrepareShortcut prepareEdge : outShortcuts.get(node)) {
+            if (prepareEdge.getTo() == node)
+                continue;
+            inShortcuts.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getTo()))
+                neighbors.add(prepareEdge.getTo());
+        }
+        for (PrepareEdge prepareEdge : inBaseEdges.get(node)) {
             if (prepareEdge.getFrom() == node)
                 continue;
-            outEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
+            outBaseEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
             if (neighborSet.add(prepareEdge.getFrom()))
                 neighbors.add(prepareEdge.getFrom());
         }
-        outEdges.get(node).clear();
-        inEdges.get(node).clear();
+        for (PrepareEdge prepareEdge : inShortcuts.get(node)) {
+            if (prepareEdge.getFrom() == node)
+                continue;
+            outShortcuts.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getFrom()))
+                neighbors.add(prepareEdge.getFrom());
+        }
+        outBaseEdges.get(node).clear();
+        inBaseEdges.get(node).clear();
+        outShortcuts.get(node).clear();
+        inShortcuts.get(node).clear();
         return neighbors;
     }
 
     public void close() {
-        outEdges.clear();
-        inEdges.clear();
+        outBaseEdges.clear();
+        inBaseEdges.clear();
+        outShortcuts.clear();
+        inShortcuts.clear();
         if (edgeBased) {
             outOrigEdges.clear();
             inOrigEdges.clear();
@@ -209,26 +235,37 @@ public class PrepareGraph {
     }
 
     private static class PrepareGraphEdgeExplorerImpl implements PrepareGraphEdgeExplorer, PrepareGraphEdgeIterator {
-        private final List<List<PrepareEdge>> prepareEdges;
+        private final List<List<PrepareBaseEdge>> prepareBaseEdges;
+        private final List<List<PrepareShortcut>> prepareShortcuts;
         private final boolean reverse;
-        private List<PrepareEdge> prepareEdgesAtNode;
+        private List<? extends PrepareEdge> prepareEdgesAtNode;
+        private int node;
         private int index;
+        private boolean inSc;
 
-        PrepareGraphEdgeExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
-            this.prepareEdges = prepareEdges;
+        PrepareGraphEdgeExplorerImpl(List<List<PrepareBaseEdge>> prepareBaseEdges, List<List<PrepareShortcut>> prepareShortcuts, boolean reverse) {
+            this.prepareBaseEdges = prepareBaseEdges;
+            this.prepareShortcuts = prepareShortcuts;
             this.reverse = reverse;
         }
 
         @Override
         public PrepareGraphEdgeIterator setBaseNode(int node) {
-            this.prepareEdgesAtNode = prepareEdges.get(node);
+            this.prepareEdgesAtNode = prepareBaseEdges.get(node);
+            this.node = node;
             this.index = -1;
+            this.inSc = false;
             return this;
         }
 
         @Override
         public boolean next() {
             index++;
+            if (!inSc && index == prepareEdgesAtNode.size()) {
+                index = 0;
+                prepareEdgesAtNode = prepareShortcuts.get(node);
+                inSc = true;
+            }
             return index < prepareEdgesAtNode.size();
         }
 
