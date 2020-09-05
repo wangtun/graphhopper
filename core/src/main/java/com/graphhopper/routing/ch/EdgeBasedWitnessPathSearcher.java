@@ -234,10 +234,9 @@ public class EdgeBasedWitnessPathSearcher {
                         updateBestPath(targetNode, targetEdge, key);
                     }
                 } else if (weight < weights[key]
-                    // special case of a witness path with equal weight -> rather take this than the bridge path
-                    // todonow: is it worth it?
-//                        || (weight == weights[key] && iter.getAdjNode() == targetNode && !isPathToCenters[currKey])) {
-                ) {
+                        // special case of a witness path with equal weight -> rather take this than the bridge path
+                        // todonow: is it worth it?
+                        || (weight == weights[key] && iter.getAdjNode() == targetNode && !isPathToCenters[currKey])) {
                     updateEntry(key, iter, weight, currKey, isPathToCenter);
                     dijkstraHeap.update_(weight, key);
                     if (!isZeroWeightLoop) {
