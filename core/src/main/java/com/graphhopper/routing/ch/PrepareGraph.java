@@ -125,9 +125,9 @@ public class PrepareGraph {
 
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
-            PrepareOrigEdge edgeObj = new PrepareOrigEdge(edgeKey, from, to);
-            outOrigEdges.get(from).add(edgeObj);
-            inOrigEdges.get(to).add(edgeObj);
+            PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
+            outOrigEdges.get(from).add(prepareOrigEdge);
+            inOrigEdges.get(to).add(prepareOrigEdge);
         }
     }
 
@@ -352,7 +352,7 @@ public class PrepareGraph {
         }
     }
 
-    public interface PrepareEdge {
+    private interface PrepareEdge {
 
         boolean isShortcut();
 
@@ -381,6 +381,98 @@ public class PrepareGraph {
         void setWeight(double weight);
 
         void setOrigEdgeCount(int origEdgeCount);
+    }
+
+    private static class PrepareBaseEdge implements PrepareEdge {
+        private final int prepareEdge;
+        private final int from;
+        private final int to;
+        private final double weight;
+        private final int origKey;
+
+        private PrepareBaseEdge(int prepareEdge, int from, int to, double weight, int origKey) {
+            this.prepareEdge = prepareEdge;
+            this.from = from;
+            this.to = to;
+            assert Double.isFinite(weight);
+            this.weight = weight;
+            this.origKey = origKey;
+        }
+
+        @Override
+        public boolean isShortcut() {
+            return false;
+        }
+
+        @Override
+        public int getPrepareEdge() {
+            return prepareEdge;
+        }
+
+        @Override
+        public int getFrom() {
+            return from;
+        }
+
+        @Override
+        public int getTo() {
+            return to;
+        }
+
+        @Override
+        public double getWeight() {
+            return weight;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            return origKey;
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            return origKey;
+        }
+
+        @Override
+        public int getSkipped1() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getSkipped2() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getOrigEdgeCount() {
+            return 1;
+        }
+
+        @Override
+        public void setSkipped1(int skipped1) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setSkipped2(int skipped2) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setWeight(double weight) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setOrigEdgeCount(int origEdgeCount) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String toString() {
+            return from + "-" + to + " (" + origKey + ") " + weight;
+        }
     }
 
     private static class PrepareShortcut implements PrepareEdge {
@@ -481,98 +573,6 @@ public class PrepareGraph {
         @Override
         public String toString() {
             return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
-        }
-    }
-
-    private static class PrepareBaseEdge implements PrepareEdge {
-        private final int prepareEdge;
-        private final int from;
-        private final int to;
-        private final double weight;
-        private final int origKey;
-
-        private PrepareBaseEdge(int prepareEdge, int from, int to, double weight, int origKey) {
-            this.prepareEdge = prepareEdge;
-            this.from = from;
-            this.to = to;
-            assert Double.isFinite(weight);
-            this.weight = weight;
-            this.origKey = origKey;
-        }
-
-        @Override
-        public boolean isShortcut() {
-            return false;
-        }
-
-        @Override
-        public int getPrepareEdge() {
-            return prepareEdge;
-        }
-
-        @Override
-        public int getFrom() {
-            return from;
-        }
-
-        @Override
-        public int getTo() {
-            return to;
-        }
-
-        @Override
-        public double getWeight() {
-            return weight;
-        }
-
-        @Override
-        public int getOrigEdgeKeyFirst() {
-            return origKey;
-        }
-
-        @Override
-        public int getOrigEdgeKeyLast() {
-            return origKey;
-        }
-
-        @Override
-        public int getSkipped1() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public int getSkipped2() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public int getOrigEdgeCount() {
-            return 1;
-        }
-
-        @Override
-        public void setSkipped1(int skipped1) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setSkipped2(int skipped2) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setWeight(double weight) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setOrigEdgeCount(int origEdgeCount) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public String toString() {
-            return from + "-" + to + " (" + origKey + ") " + weight;
         }
     }
 
