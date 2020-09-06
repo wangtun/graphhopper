@@ -122,7 +122,6 @@ public class PrepareGraph {
         PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight, key);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
-
         if (edgeBased) {
             int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
             PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
@@ -170,20 +169,18 @@ public class PrepareGraph {
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
-            int adjNode = prepareEdge.getTo();
-            if (adjNode == node)
+            if (prepareEdge.getTo() == node)
                 continue;
-            inEdges.get(adjNode).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(adjNode))
-                neighbors.add(adjNode);
+            inEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getTo()))
+                neighbors.add(prepareEdge.getTo());
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
-            int adjNode = prepareEdge.getFrom();
-            if (adjNode == node)
+            if (prepareEdge.getFrom() == node)
                 continue;
-            outEdges.get(adjNode).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(adjNode))
-                neighbors.add(adjNode);
+            outEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(prepareEdge.getFrom()))
+                neighbors.add(prepareEdge.getFrom());
         }
         outEdges.set(node, null);
         inEdges.set(node, null);
