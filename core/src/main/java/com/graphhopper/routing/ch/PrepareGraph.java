@@ -100,6 +100,7 @@ public class PrepareGraph {
                 }
             }
         }
+        prepareGraph.trimToSize();
         // todo: performance - maybe sort the edges in some clever way?
     }
 
@@ -137,6 +138,15 @@ public class PrepareGraph {
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
         return nextShortcutId++;
+    }
+
+    public void trimToSize() {
+        outEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        inEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        if (edgeBased) {
+            outOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
+            inOrigEdges.forEach(l -> ((ArrayList) l).trimToSize());
+        }
     }
 
     public PrepareGraphEdgeExplorer createOutEdgeExplorer() {
