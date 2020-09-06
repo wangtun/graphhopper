@@ -132,7 +132,9 @@ public class PrepareGraph {
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
-        PrepareEdge prepareEdge = new PrepareShortcut(nextShortcutId, from, to, weight, origEdgeKeyFirst, origEdgeKeyLast, skipped1, skipped2, origEdgeCount);
+        PrepareEdge prepareEdge = edgeBased
+                ? new EdgeBasedPrepareShortcut(nextShortcutId, from, to, origEdgeKeyFirst, origEdgeKeyLast, weight, skipped1, skipped2, origEdgeCount)
+                : new PrepareShortcut(nextShortcutId, from, to, weight, skipped1, skipped2, origEdgeCount);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
         return nextShortcutId++;
@@ -353,7 +355,6 @@ public class PrepareGraph {
     }
 
     private interface PrepareEdge {
-
         boolean isShortcut();
 
         int getPrepareEdge();
@@ -480,21 +481,16 @@ public class PrepareGraph {
         private final int from;
         private final int to;
         private double weight;
-        private final int origEdgeKeyFirst;
-        private final int origEdgeKeyLast;
         private int skipped1;
         private int skipped2;
         private int origEdgeCount;
 
-        private PrepareShortcut(int prepareEdge, int from, int to, double weight, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, int origEdgeCount) {
+        private PrepareShortcut(int prepareEdge, int from, int to, double weight, int skipped1, int skipped2, int origEdgeCount) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             assert Double.isFinite(weight);
             this.weight = weight;
-            // todo: for node-based we do not need these even for shortcuts
-            this.origEdgeKeyFirst = origEdgeKeyFirst;
-            this.origEdgeKeyLast = origEdgeKeyLast;
             this.skipped1 = skipped1;
             this.skipped2 = skipped2;
             this.origEdgeCount = origEdgeCount;
@@ -527,12 +523,12 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return origEdgeKeyFirst;
+            throw new IllegalStateException("Not supported for node-based shortcuts");
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return origEdgeKeyLast;
+            throw new IllegalStateException("Not supported for node-based shortcuts");
         }
 
         @Override
@@ -572,7 +568,35 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return from + "-" + to + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + weight;
+            return from + "-" + to + " " + weight;
+        }
+    }
+
+    private static class EdgeBasedPrepareShortcut extends PrepareShortcut {
+        // we use this subclass to save some memory for node-based where these are not needed
+        private final int origEdgeKeyFirst;
+        private final int origEdgeKeyLast;
+
+        public EdgeBasedPrepareShortcut(int prepareEdge, int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast,
+                                        double weight, int skipped1, int skipped2, int origEdgeCount) {
+            super(prepareEdge, from, to, weight, skipped1, skipped2, origEdgeCount);
+            this.origEdgeKeyFirst = origEdgeKeyFirst;
+            this.origEdgeKeyLast = origEdgeKeyLast;
+        }
+
+        @Override
+        public int getOrigEdgeKeyFirst() {
+            return origEdgeKeyFirst;
+        }
+
+        @Override
+        public int getOrigEdgeKeyLast() {
+            return origEdgeKeyLast;
+        }
+
+        @Override
+        public String toString() {
+            return getFrom() + "-" + getTo() + " (" + origEdgeKeyFirst + ", " + origEdgeKeyLast + ") " + getWeight();
         }
     }
 
