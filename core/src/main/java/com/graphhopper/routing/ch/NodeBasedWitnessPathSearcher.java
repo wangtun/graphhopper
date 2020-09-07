@@ -18,7 +18,7 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntArrayList;
-import com.graphhopper.apache.commons.collections.IntDoubleBinaryHeap;
+import com.graphhopper.apache.commons.collections.IntFloatBinaryHeap;
 import com.graphhopper.routing.DijkstraOneToMany;
 import com.graphhopper.util.Helper;
 
@@ -38,7 +38,7 @@ public class NodeBasedWitnessPathSearcher {
     private final IntArrayList changedNodes;
     private int maxVisitedNodes = Integer.MAX_VALUE;
     protected double[] weights;
-    private IntDoubleBinaryHeap heap;
+    private IntFloatBinaryHeap heap;
     private int ignoreNode = -1;
     private int visitedNodes;
     private boolean doClear = true;
@@ -51,7 +51,7 @@ public class NodeBasedWitnessPathSearcher {
         weights = new double[graph.getNodes()];
         Arrays.fill(weights, Double.MAX_VALUE);
 
-        heap = new IntDoubleBinaryHeap(1000);
+        heap = new IntFloatBinaryHeap(1000);
         changedNodes = new IntArrayList();
     }
 
@@ -96,12 +96,12 @@ public class NodeBasedWitnessPathSearcher {
             if (heap.isEmpty() || isMaxVisitedNodesExceeded())
                 return NOT_FOUND;
 
-            currNode = heap.poll_element();
+            currNode = heap.poll();
         }
 
         visitedNodes = 0;
 
-        // we call 'finished' before heap.peek_element but this would add unnecessary overhead for this special case so we do it outside of the loop
+        // we call 'finished' before heap.peekElement but this would add unnecessary overhead for this special case so we do it outside of the loop
         if (finished()) {
             // then we need a small workaround for special cases see #707
             if (heap.isEmpty())
@@ -124,11 +124,11 @@ public class NodeBasedWitnessPathSearcher {
                 double w = weights[adjNode];
                 if (w == Double.MAX_VALUE) {
                     weights[adjNode] = tmpWeight;
-                    heap.insert_(tmpWeight, adjNode);
+                    heap.insert(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
                 } else if (w > tmpWeight) {
                     weights[adjNode] = tmpWeight;
-                    heap.update_(tmpWeight, adjNode);
+                    heap.update(tmpWeight, adjNode);
                     changedNodes.add(adjNode);
                 }
             }
@@ -137,11 +137,11 @@ public class NodeBasedWitnessPathSearcher {
                 return NOT_FOUND;
 
             // calling just peek and not poll is important if the next query is cached
-            currNode = heap.peek_element();
+            currNode = heap.peekElement();
             if (finished())
                 return currNode;
 
-            heap.poll_element();
+            heap.poll();
         }
     }
 
