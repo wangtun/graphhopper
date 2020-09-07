@@ -215,7 +215,6 @@ public class PrepareGraph {
         private final List<List<PrepareEdge>> prepareEdges;
         private final boolean reverse;
         private List<PrepareEdge> prepareEdgesAtNode;
-        private PrepareEdge currEdge;
         private int index;
 
         PrepareGraphEdgeExplorerImpl(List<List<PrepareEdge>> prepareEdges, boolean reverse) {
@@ -233,76 +232,74 @@ public class PrepareGraph {
         @Override
         public boolean next() {
             index++;
-            boolean result = index < prepareEdgesAtNode.size();
-            currEdge = result ? prepareEdgesAtNode.get(index) : null;
-            return result;
+            return index < prepareEdgesAtNode.size();
         }
 
         @Override
         public int getBaseNode() {
-            return reverse ? currEdge.getTo() : currEdge.getFrom();
+            return reverse ? prepareEdgesAtNode.get(index).getTo() : prepareEdgesAtNode.get(index).getFrom();
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? currEdge.getFrom() : currEdge.getTo();
+            return reverse ? prepareEdgesAtNode.get(index).getFrom() : prepareEdgesAtNode.get(index).getTo();
         }
 
         @Override
         public int getPrepareEdge() {
-            return currEdge.getPrepareEdge();
+            return prepareEdgesAtNode.get(index).getPrepareEdge();
         }
 
         @Override
         public boolean isShortcut() {
-            return currEdge.isShortcut();
+            return prepareEdgesAtNode.get(index).isShortcut();
         }
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return currEdge.getOrigEdgeKeyFirst();
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyFirst();
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return currEdge.getOrigEdgeKeyLast();
+            return prepareEdgesAtNode.get(index).getOrigEdgeKeyLast();
         }
 
         @Override
         public int getSkipped1() {
-            return currEdge.getSkipped1();
+            return prepareEdgesAtNode.get(index).getSkipped1();
         }
 
         @Override
         public int getSkipped2() {
-            return currEdge.getSkipped2();
+            return prepareEdgesAtNode.get(index).getSkipped2();
         }
 
         @Override
         public double getWeight() {
-            return currEdge.getWeight();
+            return prepareEdgesAtNode.get(index).getWeight();
         }
 
         @Override
         public int getOrigEdgeCount() {
-            return currEdge.getOrigEdgeCount();
+            return prepareEdgesAtNode.get(index).getOrigEdgeCount();
         }
 
         @Override
         public void setSkippedEdges(int skipped1, int skipped2) {
-            currEdge.setSkipped1(skipped1);
-            currEdge.setSkipped2(skipped2);
+            prepareEdgesAtNode.get(index).setSkipped1(skipped1);
+            prepareEdgesAtNode.get(index).setSkipped2(skipped2);
         }
 
         @Override
         public void setWeight(double weight) {
             assert Double.isFinite(weight);
-            currEdge.setWeight(weight);
+            prepareEdgesAtNode.get(index).setWeight(weight);
         }
 
         @Override
         public void setOrigEdgeCount(int origEdgeCount) {
-            currEdge.setOrigEdgeCount(origEdgeCount);
+            prepareEdgesAtNode.get(index).setOrigEdgeCount(origEdgeCount);
         }
 
         @Override
