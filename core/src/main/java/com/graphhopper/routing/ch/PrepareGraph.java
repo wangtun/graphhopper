@@ -117,7 +117,10 @@ public class PrepareGraph {
     }
 
     public void addEdge(int from, int to, int edge, double weight) {
-        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight);
+        int key = edge << 1;
+        if (from > to)
+            key += 1;
+        PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight, key);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
         if (edgeBased) {
@@ -395,13 +398,15 @@ public class PrepareGraph {
         private final int from;
         private final int to;
         private final double weight;
+        private final int origKey;
 
-        public PrepareBaseEdge(int prepareEdge, int from, int to, double weight) {
+        private PrepareBaseEdge(int prepareEdge, int from, int to, double weight, int origKey) {
             this.prepareEdge = prepareEdge;
             this.from = from;
             this.to = to;
             assert Double.isFinite(weight);
             this.weight = weight;
+            this.origKey = origKey;
         }
 
         @Override
@@ -431,12 +436,12 @@ public class PrepareGraph {
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return GHUtility.createEdgeKey(from, to, prepareEdge, false);
+            return origKey;
         }
 
         @Override
         public int getOrigEdgeKeyLast() {
-            return GHUtility.createEdgeKey(from, to, prepareEdge, false);
+            return origKey;
         }
 
         @Override
@@ -476,7 +481,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return from + "-" + to + " (" + getOrigEdgeKeyFirst() + ") " + weight;
+            return from + "-" + to + " (" + origKey + ") " + weight;
         }
     }
 
