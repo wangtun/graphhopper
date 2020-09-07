@@ -176,18 +176,20 @@ public class PrepareGraph {
         neighborSet.clear();
         IntArrayList neighbors = new IntArrayList(getDegree(node));
         for (PrepareEdge prepareEdge : outEdges.get(node)) {
-            if (prepareEdge.getTo() == node)
+            int adjNode = prepareEdge.getTo();
+            if (adjNode == node)
                 continue;
-            inEdges.get(prepareEdge.getTo()).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.getTo()))
-                neighbors.add(prepareEdge.getTo());
+            inEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         for (PrepareEdge prepareEdge : inEdges.get(node)) {
-            if (prepareEdge.getFrom() == node)
+            int adjNode = prepareEdge.getFrom();
+            if (adjNode == node)
                 continue;
-            outEdges.get(prepareEdge.getFrom()).removeIf(a -> a == prepareEdge);
-            if (neighborSet.add(prepareEdge.getFrom()))
-                neighbors.add(prepareEdge.getFrom());
+            outEdges.get(adjNode).removeIf(a -> a == prepareEdge);
+            if (neighborSet.add(adjNode))
+                neighbors.add(adjNode);
         }
         outEdges.set(node, null);
         inEdges.set(node, null);
