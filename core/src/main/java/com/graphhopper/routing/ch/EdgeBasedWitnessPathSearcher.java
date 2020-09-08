@@ -24,6 +24,7 @@ import com.graphhopper.apache.commons.collections.IntFloatBinaryHeap;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.PMap;
+import com.graphhopper.util.StopWatch;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -101,6 +102,8 @@ public class EdgeBasedWitnessPathSearcher {
     // statistics to analyze performance
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
+
+    private final StopWatch twsw = new StopWatch();
 
     public EdgeBasedWitnessPathSearcher(CHPreparationGraph prepareGraph, PMap pMap) {
         this.prepareGraph = prepareGraph;
@@ -274,7 +277,7 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     public String getStatisticsString() {
-        return "last batch: " + currentBatchStats.toString() + " total: " + totalStats.toString();
+        return "last batch: " + currentBatchStats.toString() + " total: " + totalStats.toString() + " tw: " + twsw.getSeconds();
     }
 
     public long getNumPolledEdges() {
@@ -462,7 +465,10 @@ public class EdgeBasedWitnessPathSearcher {
     }
 
     private double calcTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return prepareGraph.getTurnWeight(inEdge, viaNode, outEdge);
+        twsw.start();
+        double tw = prepareGraph.getTurnWeight(inEdge, viaNode, outEdge);
+        twsw.stop();
+        return tw;
     }
 
     static class Params {

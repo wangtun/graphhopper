@@ -18,16 +18,19 @@
 
 package com.graphhopper.routing.ch;
 
-import com.carrotsearch.hppc.IntArrayList;
-import com.carrotsearch.hppc.IntContainer;
-import com.carrotsearch.hppc.IntHashSet;
-import com.carrotsearch.hppc.IntSet;
+import com.carrotsearch.hppc.*;
 import com.carrotsearch.hppc.sorting.IndirectComparator;
 import com.carrotsearch.hppc.sorting.IndirectSort;
 import com.graphhopper.routing.ev.BooleanEncodedValue;
+import com.graphhopper.routing.ev.DecimalEncodedValue;
+import com.graphhopper.routing.ev.TurnCost;
 import com.graphhopper.routing.util.AllEdgesIterator;
+import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
+import com.graphhopper.storage.TurnCostStorage;
+import com.graphhopper.util.BitUtil;
+import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 
 import java.util.ArrayList;
@@ -53,6 +56,10 @@ public class CHPreparationGraph {
     private int nextShortcutId;
     private boolean ready;
 
+    private final int[] turnCostNodes;
+    private LongArrayList turnCostEdgePairs;
+    private DoubleArrayList turnCosts;
+
     public static CHPreparationGraph nodeBased(int nodes, int edges) {
         return new CHPreparationGraph(nodes, edges, false, (in, via, out) -> 0);
     }
@@ -76,6 +83,9 @@ public class CHPreparationGraph {
         origGraphBuilder = edgeBased ? new OrigGraph.Builder() : null;
         neighborSet = new IntHashSet();
         nextShortcutId = edges;
+        turnCostNodes = new int[nodes + 1];
+        turnCostEdgePairs = new LongArrayList();
+        turnCosts = new DoubleArrayList();
     }
 
     public static void buildFromGraph(CHPreparationGraph prepareGraph, Graph graph, Weighting weighting) {
@@ -91,6 +101,32 @@ public class CHPreparationGraph {
             double weightFwd = iter.get(accessEnc) ? weighting.calcEdgeWeight(iter, false) : Double.POSITIVE_INFINITY;
             double weightBwd = iter.getReverse(accessEnc) ? weighting.calcEdgeWeight(iter, true) : Double.POSITIVE_INFINITY;
             prepareGraph.addEdge(iter.getBaseNode(), iter.getAdjNode(), iter.getEdge(), weightFwd, weightBwd);
+        }
+        FlagEncoder encoder = weighting.getFlagEncoder();
+        String key = TurnCost.key(encoder.toString());
+        if (encoder.hasEncodedValue(key)) {
+            DecimalEncodedValue turnCostEnc = encoder.getDecimalEncodedValue(key);
+            TurnCostStorage tcStorage = graph.getTurnCostStorage();
+            TurnCostStorage.TurnRelationIterator tcIter = tcStorage.getAllTurnRelations();
+            int lastNode = -1;
+            while (tcIter.next()) {
+                int viaNode = tcIter.getViaNode();
+                if (viaNode < lastNode)
+                    throw new IllegalStateException();
+                long edgePair = BitUtil.LITTLE.combineIntsToLong(tcIter.getFromEdge(), tcIter.getToEdge());
+                double turnCost = tcIter.getCost(turnCostEnc);
+                // todonow: do not forget that this is always infinite currently...
+                int index = prepareGraph.turnCostEdgePairs.size();
+                prepareGraph.turnCostEdgePairs.add(edgePair);
+                prepareGraph.turnCosts.add(turnCost);
+                if (viaNode != lastNode) {
+                    for (int i = lastNode + 1; i <= viaNode; i++) {
+                        prepareGraph.turnCostNodes[i] = index;
+                    }
+                }
+                lastNode = viaNode;
+            }
+            prepareGraph.turnCostNodes[prepareGraph.turnCostNodes.length - 1] = prepareGraph.turnCostEdgePairs.size();
         }
         prepareGraph.prepareForContraction();
     }
@@ -176,7 +212,25 @@ public class CHPreparationGraph {
     }
 
     public double getTurnWeight(int inEdge, int viaNode, int outEdge) {
-        return turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
+//        double checkTW = turnCostFunction.getTurnWeight(inEdge, viaNode, outEdge);
+        double res = 0;
+        if (!EdgeIterator.Edge.isValid(inEdge) || !EdgeIterator.Edge.isValid(outEdge))
+            res = 0;
+        else if (inEdge == outEdge) {
+            // todonow: no! use u-turn costs!
+            res = Double.POSITIVE_INFINITY;
+        } else
+            for (int i = turnCostNodes[viaNode]; i < turnCostNodes[viaNode + 1]; i++) {
+                long l = turnCostEdgePairs.get(i);
+                if (inEdge == BitUtil.LITTLE.getIntLow(l) && outEdge == BitUtil.LITTLE.getIntHigh(l)) {
+                    res = turnCosts.get(i);
+                    break;
+                }
+            }
+//        if (checkTW != res) {
+//            throw new IllegalStateException();
+//        }
+        return res;
     }
 
     public IntContainer disconnect(int node) {
