@@ -592,15 +592,4 @@ public class PrepareGraph {
         }
     }
 
-    private static class PrepareOrigEdge {
-        private final int edgeKey;
-        private final int baseNode;
-        private final int adjNode;
-
-        PrepareOrigEdge(int edgeKey, int baseNode, int adjNode) {
-            this.edgeKey = edgeKey;
-            this.baseNode = baseNode;
-            this.adjNode = adjNode;
-        }
-    }
 }
