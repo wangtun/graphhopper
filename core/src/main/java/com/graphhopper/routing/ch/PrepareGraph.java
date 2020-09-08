@@ -26,6 +26,8 @@ import com.graphhopper.routing.ev.BooleanEncodedValue;
 import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
+import com.graphhopper.util.EdgeExplorer;
+import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 
 import java.util.ArrayList;
@@ -39,19 +41,19 @@ public class PrepareGraph {
     private final int edges;
     private final boolean edgeBased;
     private final TurnCostFunction turnCostFunction;
+    private final Graph origGraph;
+    private final Weighting weighting;
     private final List<List<PrepareEdge>> outEdges;
     private final List<List<PrepareEdge>> inEdges;
-    private final List<List<PrepareOrigEdge>> outOrigEdges;
-    private final List<List<PrepareOrigEdge>> inOrigEdges;
     private final IntSet neighborSet;
     private int nextShortcutId;
 
     public static PrepareGraph nodeBased(int nodes, int edges) {
-        return new PrepareGraph(nodes, edges, false, (in, via, out) -> 0);
+        return new PrepareGraph(nodes, edges, false, (in, via, out) -> 0, null, null);
     }
 
-    public static PrepareGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction) {
-        return new PrepareGraph(nodes, edges, true, turnCostFunction);
+    public static PrepareGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction, Graph origGraph, Weighting weighting) {
+        return new PrepareGraph(nodes, edges, true, turnCostFunction, origGraph, weighting);
     }
 
     /**
@@ -59,20 +61,15 @@ public class PrepareGraph {
      * @param edges the maximum number of (non-shortcut) edges in this graph. edges-1 is the maximum edge id that may
      *              be used.
      */
-    private PrepareGraph(int nodes, int edges, boolean edgeBased, TurnCostFunction turnCostFunction) {
+    private PrepareGraph(int nodes, int edges, boolean edgeBased, TurnCostFunction turnCostFunction, Graph origGraph, Weighting weighting) {
         this.turnCostFunction = turnCostFunction;
         this.nodes = nodes;
         this.edges = edges;
         this.edgeBased = edgeBased;
+        this.origGraph = origGraph;
+        this.weighting = weighting;
         outEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
         inEdges = IntStream.range(0, nodes).<List<PrepareEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
-        if (edgeBased) {
-            outOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
-            inOrigEdges = IntStream.range(0, nodes).<List<PrepareOrigEdge>>mapToObj(i -> new ArrayList<>(0)).collect(toList());
-        } else {
-            outOrigEdges = null;
-            inOrigEdges = null;
-        }
         neighborSet = new IntHashSet();
         nextShortcutId = edges;
     }
@@ -84,6 +81,10 @@ public class PrepareGraph {
         if (graph.getEdges() != prepareGraph.getOriginalEdges())
             throw new IllegalArgumentException("Cannot initialize from given graph. The number of edges does not match: " +
                     graph.getEdges() + " vs. " + prepareGraph.getOriginalEdges());
+        if (prepareGraph.edgeBased && (prepareGraph.origGraph != graph || prepareGraph.weighting != weighting)) {
+            throw new IllegalArgumentException("The given graph and weighting do not match the expected ones");
+        }
+
         BooleanEncodedValue accessEnc = weighting.getFlagEncoder().getAccessEnc();
         AllEdgesIterator iter = graph.getAllEdges();
         while (iter.next()) {
@@ -122,12 +123,6 @@ public class PrepareGraph {
         PrepareEdge prepareEdge = new PrepareBaseEdge(edge, from, to, weight, key);
         outEdges.get(from).add(prepareEdge);
         inEdges.get(to).add(prepareEdge);
-        if (edgeBased) {
-            int edgeKey = GHUtility.createEdgeKey(from, to, edge, false);
-            PrepareOrigEdge prepareOrigEdge = new PrepareOrigEdge(edgeKey, from, to);
-            outOrigEdges.get(from).add(prepareOrigEdge);
-            inOrigEdges.get(to).add(prepareOrigEdge);
-        }
     }
 
     public int addShortcut(int from, int to, int origEdgeKeyFirst, int origEdgeKeyLast, int skipped1, int skipped2, double weight, int origEdgeCount) {
@@ -150,13 +145,13 @@ public class PrepareGraph {
     public PrepareGraphOrigEdgeExplorer createBaseOutEdgeExplorer() {
         if (!edgeBased)
             throw new IllegalStateException("base out explorer is not available for node-based graph");
-        return new PrepareGraphOrigEdgeExplorerImpl(outOrigEdges, false);
+        return new PrepareGraphOrigEdgeExplorerImpl(origGraph.createEdgeExplorer(), weighting, false);
     }
 
     public PrepareGraphOrigEdgeExplorer createBaseInEdgeExplorer() {
         if (!edgeBased)
             throw new IllegalStateException("base in explorer is not available for node-based graph");
-        return new PrepareGraphOrigEdgeExplorerImpl(inOrigEdges, true);
+        return new PrepareGraphOrigEdgeExplorerImpl(origGraph.createEdgeExplorer(), weighting, true);
     }
 
     public double getTurnWeight(int inEdge, int viaNode, int outEdge) {
@@ -192,10 +187,6 @@ public class PrepareGraph {
     public void close() {
         outEdges.clear();
         inEdges.clear();
-        if (edgeBased) {
-            outOrigEdges.clear();
-            inOrigEdges.clear();
-        }
     }
 
     @FunctionalInterface
@@ -304,42 +295,44 @@ public class PrepareGraph {
     }
 
     private static class PrepareGraphOrigEdgeExplorerImpl implements PrepareGraphOrigEdgeExplorer, PrepareGraphOrigEdgeIterator {
-        private final List<List<PrepareOrigEdge>> edges;
+        private final EdgeExplorer origExplorer;
+        private final BooleanEncodedValue accessEnc;
+        private EdgeIterator currEdge;
         private final boolean reverse;
-        private List<PrepareOrigEdge> edgesAtNode;
-        private int index;
 
-        PrepareGraphOrigEdgeExplorerImpl(List<List<PrepareOrigEdge>> edges, boolean reverse) {
-            this.edges = edges;
+        PrepareGraphOrigEdgeExplorerImpl(EdgeExplorer origExplorer, Weighting weighting, boolean reverse) {
+            this.origExplorer = origExplorer;
+            this.accessEnc = weighting.getFlagEncoder().getAccessEnc();
             this.reverse = reverse;
         }
 
         @Override
         public PrepareGraphOrigEdgeIterator setBaseNode(int node) {
-            this.edgesAtNode = edges.get(node);
-            this.index = -1;
+            this.currEdge = origExplorer.setBaseNode(node);
             return this;
         }
 
         @Override
         public boolean next() {
-            index++;
-            return index < edgesAtNode.size();
+            while (currEdge.next())
+                if ((reverse && currEdge.getReverse(accessEnc)) || (!reverse && currEdge.get(accessEnc)))
+                    return true;
+            return false;
         }
 
         @Override
         public int getBaseNode() {
-            return reverse ? edgesAtNode.get(index).adjNode : edgesAtNode.get(index).baseNode;
+            return currEdge.getBaseNode();
         }
 
         @Override
         public int getAdjNode() {
-            return reverse ? edgesAtNode.get(index).baseNode : edgesAtNode.get(index).adjNode;
+            return currEdge.getAdjNode();
         }
 
         @Override
         public int getOrigEdgeKeyFirst() {
-            return reverse ? GHUtility.reverseEdgeKey(edgesAtNode.get(index).edgeKey) : edgesAtNode.get(index).edgeKey;
+            return GHUtility.createEdgeKey(currEdge.getBaseNode(), currEdge.getAdjNode(), currEdge.getEdge(), false);
         }
 
         @Override
@@ -349,7 +342,7 @@ public class PrepareGraph {
 
         @Override
         public String toString() {
-            return GHUtility.getEdgeFromEdgeKey(getOrigEdgeKeyFirst()) + ": " + getBaseNode() + "-" + getAdjNode();
+            return currEdge.getEdge() + ": " + currEdge.getBaseNode() + "-" + currEdge.getAdjNode();
         }
     }
 
