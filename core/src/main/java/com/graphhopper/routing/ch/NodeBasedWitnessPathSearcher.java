@@ -18,10 +18,9 @@
 package com.graphhopper.routing.ch;
 
 import com.carrotsearch.hppc.IntArrayList;
-import com.graphhopper.apache.commons.collections.IntFloatBinaryHeap;
+import com.graphhopper.coll.MinHeapWithUpdate;
 import com.graphhopper.routing.DijkstraOneToMany;
 import com.graphhopper.util.EdgeIterator;
-import com.graphhopper.util.Helper;
 
 import java.util.Arrays;
 
@@ -43,7 +42,7 @@ public class NodeBasedWitnessPathSearcher {
     protected double[] weights;
     private int[] parents;
     private int[] edgeIds;
-    private IntFloatBinaryHeap heap;
+    private MinHeapWithUpdate heap;
     private int ignoreNode = -1;
     private int visitedNodes;
     private boolean doClear = true;
@@ -68,7 +67,7 @@ public class NodeBasedWitnessPathSearcher {
         weights = new double[graph.getNodes()];
         Arrays.fill(weights, Double.MAX_VALUE);
 
-        heap = new IntFloatBinaryHeap(1000);
+        heap = new MinHeapWithUpdate(graph.getNodes());
         changedNodes = new IntArrayList();
     }
 
@@ -146,13 +145,13 @@ public class NodeBasedWitnessPathSearcher {
                 if (w == Double.MAX_VALUE) {
                     parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
-                    heap.insert(tmpWeight, adjNode);
+                    heap.push(adjNode, (float) tmpWeight);
                     changedNodes.add(adjNode);
                     edgeIds[adjNode] = iter.getEdge();
                 } else if (w > tmpWeight) {
                     parents[adjNode] = currNode;
                     weights[adjNode] = tmpWeight;
-                    heap.update(tmpWeight, adjNode);
+                    heap.update(adjNode, (float) tmpWeight);
                     changedNodes.add(adjNode);
                     edgeIds[adjNode] = iter.getEdge();
                 }
@@ -162,7 +161,7 @@ public class NodeBasedWitnessPathSearcher {
                 return NOT_FOUND;
 
             // calling just peek and not poll is important if the next query is cached
-            currNode = heap.peekElement();
+            currNode = heap.peekId();
             if (finished())
                 return currNode;
 
@@ -197,11 +196,13 @@ public class NodeBasedWitnessPathSearcher {
      * List currently used memory in MB (approximately)
      */
     public String getMemoryUsageAsString() {
-        long len = weights.length;
-        return ((8L + 4L + 4L) * len
-                + changedNodes.buffer.length * 4L
-                + heap.getCapacity() * (4L + 4L)) / Helper.MB
-                + "MB";
+        // todonow
+        return "todonow";
+//        long len = weights.length;
+//        return ((8L + 4L + 4L) * len
+//                + changedNodes.buffer.length * 4L
+//                + heap.getCapacity() * (4L + 4L)) / Helper.MB
+//                + "MB";
     }
 
     public void setMaxVisitedNodes(int numberOfNodes) {

@@ -20,7 +20,7 @@ package com.graphhopper.routing.ch;
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
-import com.graphhopper.apache.commons.collections.IntFloatBinaryHeap;
+import com.graphhopper.coll.MinHeapWithUpdate;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.PMap;
@@ -94,7 +94,7 @@ public class EdgeBasedWitnessPathSearcher {
     private boolean[] isPathToCenters;
     private IntObjectMap<CHEntry> initialEntryParents;
     private IntArrayList changedEdges;
-    private IntFloatBinaryHeap dijkstraHeap;
+    private MinHeapWithUpdate dijkstraHeap;
 
     // we keep track of the average number and distribution width of settled edges during the last searches to estimate
     // an appropriate maximum of settled edges for the next searches
@@ -116,7 +116,7 @@ public class EdgeBasedWitnessPathSearcher {
         maxSettledEdges = params.minimumMaxSettledEdges;
         int numOriginalEdges = chGraph.getOriginalEdges();
         initStorage(2 * numOriginalEdges);
-        initCollections();
+        initCollections(chGraph.getNodes());
     }
 
     private void extractParams(PMap pMap) {
@@ -150,7 +150,7 @@ public class EdgeBasedWitnessPathSearcher {
         currentBatchStats.maxNumSettledEdges += maxSettledEdges;
         totalStats.numSearches++;
         totalStats.maxNumSettledEdges += maxSettledEdges;
-        return dijkstraHeap.getSize();
+        return dijkstraHeap.size();
     }
 
     /**
@@ -197,7 +197,7 @@ public class EdgeBasedWitnessPathSearcher {
                 // that could yield a bridge-path
                 break;
             }
-            final int currKey = dijkstraHeap.peekElement();
+            final int currKey = dijkstraHeap.peekId();
             if (weights[currKey] > bestPathWeight) {
                 // just reaching this edge is more expensive than the best path found so far including the turn costs
                 // to reach the target edge -> we can stop
@@ -237,13 +237,13 @@ public class EdgeBasedWitnessPathSearcher {
                 if (!EdgeIterator.Edge.isValid(edges[key])) {
                     setEntry(key, iter, weight, currKey, isPathToCenter);
                     changedEdges.add(key);
-                    dijkstraHeap.insert(weight, key);
+                    dijkstraHeap.push(key, (float) weight);
                     if (!isZeroWeightLoop) {
                         updateBestPath(targetNode, targetEdge, key);
                     }
                 } else if (weight < weights[key]) {
                     updateEntry(key, iter, weight, currKey, isPathToCenter);
-                    dijkstraHeap.update(weight, key);
+                    dijkstraHeap.update(key, (float) weight);
                     if (!isZeroWeightLoop) {
                         updateBestPath(targetNode, targetEdge, key);
                     }
@@ -314,10 +314,10 @@ public class EdgeBasedWitnessPathSearcher {
         Arrays.fill(isPathToCenters, false);
     }
 
-    private void initCollections() {
+    private void initCollections(int nodes) {
         initialEntryParents = new IntObjectHashMap<>(10);
         changedEdges = new IntArrayList(1000);
-        dijkstraHeap = new IntFloatBinaryHeap(1000);
+        dijkstraHeap = new MinHeapWithUpdate(nodes);
     }
 
     private void setInitialEntries(int sourceNode, int sourceEdge, int centerNode) {
@@ -370,7 +370,7 @@ public class EdgeBasedWitnessPathSearcher {
             if (isPathToCenters[key]) {
                 numPathsToCenter++;
             }
-            dijkstraHeap.insert(weights[key], key);
+            dijkstraHeap.push(key, (float) weights[key]);
         }
     }
 
