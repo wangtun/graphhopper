@@ -44,11 +44,11 @@ import static com.graphhopper.util.Helper.nf;
 class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
     private final PrepareGraph prepareGraph;
-    private final PrepareGraphEdgeExplorer inEdgeExplorer;
-    private final PrepareGraphEdgeExplorer outEdgeExplorer;
-    private final PrepareGraphEdgeExplorer existingShortcutExplorer;
-    private final PrepareGraphOrigEdgeExplorer sourceNodeOrigInEdgeExplorer;
-    private final PrepareGraphOrigEdgeExplorer targetNodeOrigOutEdgeExplorer;
+    private PrepareGraphEdgeExplorer inEdgeExplorer;
+    private PrepareGraphEdgeExplorer outEdgeExplorer;
+    private PrepareGraphEdgeExplorer existingShortcutExplorer;
+    private PrepareGraphOrigEdgeExplorer sourceNodeOrigInEdgeExplorer;
+    private PrepareGraphOrigEdgeExplorer targetNodeOrigOutEdgeExplorer;
     private final ShortcutHandler shortcutHandler;
     private final Params params = new Params();
     private final PMap pMap;
@@ -81,11 +81,6 @@ class EdgeBasedNodeContractor implements NodeContractor {
         this.shortcutHandler = shortcutHandler;
         this.pMap = pMap;
         extractParams(pMap);
-        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
-        sourceNodeOrigInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
-        targetNodeOrigOutEdgeExplorer = prepareGraph.createBaseOutEdgeExplorer();
     }
 
     private void extractParams(PMap pMap) {
@@ -96,6 +91,11 @@ class EdgeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
+        sourceNodeOrigInEdgeExplorer = prepareGraph.createInOrigEdgeExplorer();
+        targetNodeOrigOutEdgeExplorer = prepareGraph.createOutOrigEdgeExplorer();
         witnessPathSearcher = new EdgeBasedWitnessPathSearcher(prepareGraph, pMap);
         hierarchyDepths = new int[prepareGraph.getNodes()];
     }

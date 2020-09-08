@@ -29,11 +29,11 @@ import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor implements NodeContractor {
     private final PrepareGraph prepareGraph;
-    private final PrepareGraphEdgeExplorer inEdgeExplorer;
-    private final PrepareGraphEdgeExplorer outEdgeExplorer;
-    private final PrepareGraphEdgeExplorer existingShortcutExplorer;
     private final ShortcutHandler shortcutInserter;
     private final Params params = new Params();
+    private PrepareGraphEdgeExplorer inEdgeExplorer;
+    private PrepareGraphEdgeExplorer outEdgeExplorer;
+    private PrepareGraphEdgeExplorer existingShortcutExplorer;
     private NodeBasedWitnessPathSearcher witnessPathSearcher;
     private int addedShortcutsCount;
     private long dijkstraCount;
@@ -47,9 +47,6 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     NodeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutInserter, PMap pMap) {
         this.prepareGraph = prepareGraph;
-        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
-        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;
     }
@@ -61,6 +58,9 @@ class NodeBasedNodeContractor implements NodeContractor {
 
     @Override
     public void initFromGraph() {
+        inEdgeExplorer = prepareGraph.createInEdgeExplorer();
+        outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
+        existingShortcutExplorer = prepareGraph.createOutEdgeExplorer();
         witnessPathSearcher = new NodeBasedWitnessPathSearcher(prepareGraph);
     }
 

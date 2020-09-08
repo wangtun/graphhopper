@@ -107,7 +107,7 @@ public class EdgeBasedWitnessPathSearcher {
         extractParams(pMap);
 
         outEdgeExplorer = prepareGraph.createOutEdgeExplorer();
-        origInEdgeExplorer = prepareGraph.createBaseInEdgeExplorer();
+        origInEdgeExplorer = prepareGraph.createInOrigEdgeExplorer();
 
         maxSettledEdges = params.minimumMaxSettledEdges;
         initStorage(2 * prepareGraph.getOriginalEdges());
