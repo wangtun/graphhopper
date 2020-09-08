@@ -40,7 +40,7 @@ import static java.util.stream.Collectors.toList;
  * Graph data structure used for CH preparation. It allows caching weights and edges that are not needed anymore
  * (those adjacent to contracted nodes) can be removed (see {@link #disconnect}.
  */
-public class PrepareGraph {
+public class CHPreparationGraph {
     private final int nodes;
     private final int edges;
     private final boolean edgeBased;
@@ -53,12 +53,12 @@ public class PrepareGraph {
     private int nextShortcutId;
     private boolean ready;
 
-    public static PrepareGraph nodeBased(int nodes, int edges) {
-        return new PrepareGraph(nodes, edges, false, (in, via, out) -> 0);
+    public static CHPreparationGraph nodeBased(int nodes, int edges) {
+        return new CHPreparationGraph(nodes, edges, false, (in, via, out) -> 0);
     }
 
-    public static PrepareGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction) {
-        return new PrepareGraph(nodes, edges, true, turnCostFunction);
+    public static CHPreparationGraph edgeBased(int nodes, int edges, TurnCostFunction turnCostFunction) {
+        return new CHPreparationGraph(nodes, edges, true, turnCostFunction);
     }
 
     /**
@@ -66,7 +66,7 @@ public class PrepareGraph {
      * @param edges the maximum number of (non-shortcut) edges in this graph. edges-1 is the maximum edge id that may
      *              be used.
      */
-    private PrepareGraph(int nodes, int edges, boolean edgeBased, TurnCostFunction turnCostFunction) {
+    private CHPreparationGraph(int nodes, int edges, boolean edgeBased, TurnCostFunction turnCostFunction) {
         this.turnCostFunction = turnCostFunction;
         this.nodes = nodes;
         this.edges = edges;
@@ -78,7 +78,7 @@ public class PrepareGraph {
         nextShortcutId = edges;
     }
 
-    public static void buildFromGraph(PrepareGraph prepareGraph, Graph graph, Weighting weighting) {
+    public static void buildFromGraph(CHPreparationGraph prepareGraph, Graph graph, Weighting weighting) {
         if (graph.getNodes() != prepareGraph.getNodes())
             throw new IllegalArgumentException("Cannot initialize from given graph. The number of nodes does not match: " +
                     graph.getNodes() + " vs. " + prepareGraph.getNodes());

@@ -28,7 +28,7 @@ import static com.graphhopper.routing.ch.CHParameters.ORIGINAL_EDGE_COUNT_WEIGHT
 import static com.graphhopper.util.Helper.nf;
 
 class NodeBasedNodeContractor implements NodeContractor {
-    private final PrepareGraph prepareGraph;
+    private final CHPreparationGraph prepareGraph;
     private final ShortcutHandler shortcutInserter;
     private final Params params = new Params();
     private PrepareGraphEdgeExplorer inEdgeExplorer;
@@ -45,7 +45,7 @@ class NodeBasedNodeContractor implements NodeContractor {
     private int originalEdgesCount;
     private int shortcutsCount;
 
-    NodeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutInserter, PMap pMap) {
+    NodeBasedNodeContractor(CHPreparationGraph prepareGraph, ShortcutHandler shortcutInserter, PMap pMap) {
         this.prepareGraph = prepareGraph;
         extractParams(pMap);
         this.shortcutInserter = shortcutInserter;

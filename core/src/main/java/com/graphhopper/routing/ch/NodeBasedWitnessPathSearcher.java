@@ -29,7 +29,7 @@ import java.util.Arrays;
  * i.e. its a Dijkstra search that allows re-using the shortest path tree for different searches with the same origin
  * node and uses large int/double arrays instead of hash maps to store the shortest path tree (higher memory consumption,
  * but faster query times -> better for CH preparation). Main reason we use this instead of {@link DijkstraOneToMany}
- * is that we can use this implementation with a {@link PrepareGraph} and we are only interested in checking for
+ * is that we can use this implementation with a {@link CHPreparationGraph} and we are only interested in checking for
  * witness paths (e.g. we do not need to find the actual path).
  */
 public class NodeBasedWitnessPathSearcher {
@@ -45,7 +45,7 @@ public class NodeBasedWitnessPathSearcher {
     private int currNode, to;
     private double weightLimit = Double.MAX_VALUE;
 
-    public NodeBasedWitnessPathSearcher(PrepareGraph graph) {
+    public NodeBasedWitnessPathSearcher(CHPreparationGraph graph) {
         outEdgeExplorer = graph.createOutEdgeExplorer();
 
         weights = new double[graph.getNodes()];

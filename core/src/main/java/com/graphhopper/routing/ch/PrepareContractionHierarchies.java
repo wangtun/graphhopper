@@ -61,7 +61,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     private final StopWatch contractionSW = new StopWatch();
     private final Params params;
     private final Graph graph;
-    private final PrepareGraph prepareGraph;
+    private final CHPreparationGraph prepareGraph;
     private final NodeContractor nodeContractor;
     private final int nodes;
     private NodeOrderingProvider nodeOrderingProvider;
@@ -88,11 +88,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
             if (turnCostStorage == null) {
                 throw new IllegalArgumentException("For edge-based CH you need a turn cost storage");
             }
-            prepareGraph = PrepareGraph.edgeBased(ghStorage.getNodes(), ghStorage.getEdges(), chConfig.getWeighting()::calcTurnWeight);
+            prepareGraph = CHPreparationGraph.edgeBased(ghStorage.getNodes(), ghStorage.getEdges(), chConfig.getWeighting()::calcTurnWeight);
             EdgeBasedNodeContractor.ShortcutHandler shortcutInserter = new EdgeBasedShortcutInserter(chGraph);
             nodeContractor = new EdgeBasedNodeContractor(prepareGraph, shortcutInserter, pMap);
         } else {
-            prepareGraph = PrepareGraph.nodeBased(ghStorage.getNodes(), ghStorage.getEdges());
+            prepareGraph = CHPreparationGraph.nodeBased(ghStorage.getNodes(), ghStorage.getEdges());
             NodeBasedNodeContractor.ShortcutHandler shortcutInserter = new NodeBasedShortcutHandler(chGraph);
             nodeContractor = new NodeBasedNodeContractor(prepareGraph, shortcutInserter, pMap);
         }
@@ -167,7 +167,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
         sortedNodes = new MinHeapWithUpdate(prepareGraph.getNodes());
         logger.info("Building CH prepare graph");
         StopWatch sw = new StopWatch().start();
-        PrepareGraph.buildFromGraph(prepareGraph, graph, getWeighting());
+        CHPreparationGraph.buildFromGraph(prepareGraph, graph, getWeighting());
         logger.info("Finished building CH prepare graph, took: {}s", sw.stop().getSeconds());
         nodeContractor.initFromGraph();
     }

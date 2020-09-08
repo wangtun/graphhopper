@@ -43,7 +43,7 @@ import static com.graphhopper.util.Helper.nf;
  */
 class EdgeBasedNodeContractor implements NodeContractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeBasedNodeContractor.class);
-    private final PrepareGraph prepareGraph;
+    private final CHPreparationGraph prepareGraph;
     private PrepareGraphEdgeExplorer inEdgeExplorer;
     private PrepareGraphEdgeExplorer outEdgeExplorer;
     private PrepareGraphEdgeExplorer existingShortcutExplorer;
@@ -76,7 +76,7 @@ class EdgeBasedNodeContractor implements NodeContractor {
     // counters used for performance analysis
     private int numPolledEdges;
 
-    public EdgeBasedNodeContractor(PrepareGraph prepareGraph, ShortcutHandler shortcutHandler, PMap pMap) {
+    public EdgeBasedNodeContractor(CHPreparationGraph prepareGraph, ShortcutHandler shortcutHandler, PMap pMap) {
         this.prepareGraph = prepareGraph;
         this.shortcutHandler = shortcutHandler;
         this.pMap = pMap;

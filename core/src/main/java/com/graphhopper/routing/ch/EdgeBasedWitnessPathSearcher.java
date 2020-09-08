@@ -64,7 +64,7 @@ public class EdgeBasedWitnessPathSearcher {
     private static final int NO_NODE = -1;
     private static final double MAX_ZERO_WEIGHT_LOOP = 1.e-3;
 
-    private final PrepareGraph prepareGraph;
+    private final CHPreparationGraph prepareGraph;
     private final PrepareGraphEdgeExplorer outEdgeExplorer;
     private final PrepareGraphOrigEdgeExplorer origInEdgeExplorer;
 
@@ -102,7 +102,7 @@ public class EdgeBasedWitnessPathSearcher {
     private final Stats currentBatchStats = new Stats();
     private final Stats totalStats = new Stats();
 
-    public EdgeBasedWitnessPathSearcher(PrepareGraph prepareGraph, PMap pMap) {
+    public EdgeBasedWitnessPathSearcher(CHPreparationGraph prepareGraph, PMap pMap) {
         this.prepareGraph = prepareGraph;
         extractParams(pMap);
 
