@@ -116,7 +116,8 @@ public class EdgeBasedWitnessPathSearcher {
         maxSettledEdges = params.minimumMaxSettledEdges;
         int numOriginalEdges = chGraph.getOriginalEdges();
         initStorage(2 * numOriginalEdges);
-        initCollections(chGraph.getNodes());
+        initCollections();
+        dijkstraHeap = new MinHeapWithUpdate(2 * numOriginalEdges);
     }
 
     private void extractParams(PMap pMap) {
@@ -314,10 +315,9 @@ public class EdgeBasedWitnessPathSearcher {
         Arrays.fill(isPathToCenters, false);
     }
 
-    private void initCollections(int nodes) {
+    private void initCollections() {
         initialEntryParents = new IntObjectHashMap<>(10);
         changedEdges = new IntArrayList(1000);
-        dijkstraHeap = new MinHeapWithUpdate(nodes);
     }
 
     private void setInitialEntries(int sourceNode, int sourceEdge, int centerNode) {
