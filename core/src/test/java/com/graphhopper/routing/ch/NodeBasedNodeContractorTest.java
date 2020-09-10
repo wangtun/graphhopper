@@ -122,7 +122,7 @@ public class NodeBasedNodeContractorTest {
         graph.edge(6, 7, 1, true);
         graph.freeze();
 
-        contractInOrder(3, 5, 7, 8, 4, 1, 7);
+        contractInOrder(3, 5, 7, 8, 4, 1, 6);
         // note: after contraction of nodes 3, 5, 8 the graph looks like this:
         // 1 -- 4 -->-- 6 -- 7
         //       \      |

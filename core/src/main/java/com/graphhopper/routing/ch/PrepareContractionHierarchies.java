@@ -322,6 +322,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation {
     }
 
     private IntContainer contractNode(int node, int level) {
+        if (isContracted(node))
+            throw new IllegalArgumentException("Node " + node + " was contracted already");
         contractionSW.start();
         IntContainer neighbors = nodeContractor.contractNode(node);
         chGraph.setLevel(node, level);
