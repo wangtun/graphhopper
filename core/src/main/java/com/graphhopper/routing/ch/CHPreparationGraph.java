@@ -59,6 +59,7 @@ public class CHPreparationGraph {
     private final int[] turnCostNodes;
     private LongArrayList turnCostEdgePairs;
     private DoubleArrayList turnCosts;
+    private double uTurnCosts;
 
     public static CHPreparationGraph nodeBased(int nodes, int edges) {
         return new CHPreparationGraph(nodes, edges, false, (in, via, out) -> 0);
@@ -126,7 +127,12 @@ public class CHPreparationGraph {
                 }
                 lastNode = viaNode;
             }
+            for (int i = lastNode + 1; i <= prepareGraph.turnCostNodes.length - 1; i++) {
+                prepareGraph.turnCostNodes[i] = prepareGraph.turnCostEdgePairs.size();
+            }
             prepareGraph.turnCostNodes[prepareGraph.turnCostNodes.length - 1] = prepareGraph.turnCostEdgePairs.size();
+            // todonow: get rid of this hack...
+            prepareGraph.uTurnCosts = weighting.calcTurnWeight(1, 0, 1);
         }
         prepareGraph.prepareForContraction();
     }
@@ -217,8 +223,7 @@ public class CHPreparationGraph {
         if (!EdgeIterator.Edge.isValid(inEdge) || !EdgeIterator.Edge.isValid(outEdge))
             res = 0;
         else if (inEdge == outEdge) {
-            // todonow: no! use u-turn costs!
-            res = Double.POSITIVE_INFINITY;
+            res = uTurnCosts;
         } else
             for (int i = turnCostNodes[viaNode]; i < turnCostNodes[viaNode + 1]; i++) {
                 long l = turnCostEdgePairs.get(i);
@@ -299,6 +304,7 @@ public class CHPreparationGraph {
         @Override
         public PrepareGraphEdgeIterator setBaseNode(int node) {
             this.prepareEdgesAtNode = prepareEdges.get(node);
+            assert prepareEdgesAtNode != null;
             this.index = -1;
             return this;
         }

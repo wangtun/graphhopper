@@ -146,7 +146,7 @@ public class PrepareContractionHierarchiesTest {
         int old = routingCHGraph.getEdges();
         PrepareContractionHierarchies prepare = createPrepareContractionHierarchies(g);
         prepare.doWork();
-        assertEquals(old + 2, routingCHGraph.getEdges());
+        assertEquals(old, routingCHGraph.getEdges());
     }
 
     @Test
